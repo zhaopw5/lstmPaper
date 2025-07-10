@@ -1,0 +1,10 @@
+Missing Data Report for solar_physics_data_1985_2025_cycle_prediction.csv
+Generated: 2025-07-10 09:21:52.754271
+
+Column,MissingCount,MissingPercentage
+date,0,0.00%
+HMF,0,0.00%
+wind_speed,0,0.00%
+SSN,0,0.00%
+polarity,0,0.00%
+HCS_tilt,0,0.00%

@@ -1,0 +1,8 @@
+WSO Computed "Tilt Angle" of the Heliospheric Current Sheet
+The following table gives the maximum extent in latitude reached by the computed heliospheric current sheet (HCS) for the indicated Carrington Rotations. The start date of the CR is specified. The maximum latitudinal extent of the HCS was computed using two potential field models applied to photospheric magnetic field observations from WSO. Values above 70 degrees should be considered lower limits as the model is not computed above 70 degrees.
+
+The "classic" model uses a line-of-sight boundary condition at the photosphere and includes a significant polar field correction. A newer, possibly more accurate, model uses a radial boundary condition at the photosphere, and requires no polar field correction. In the table we give radial model results computed with a higher source surface radius (3.25) in the first few columns (R_av, R_n, and R_s). The two model HCS's generally track each other, but with a higher source surface radius, the radial model current sheet shown here is flatter and therefore usually has a lower maximum extent. The classic model results tabulated here probably give a better estimate. (L_av, L_n, and L_s)
+
+As indicated in the column headings, values are provided for the maximum northern and southern extent of the HCS as well as the average.
+
+Warning: the final Carrington Rotation may be based on incomplete data.
