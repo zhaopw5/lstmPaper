@@ -59,17 +59,26 @@ df.to_csv(f'{output_dir}solar_physics_data_1985_2025_cycle_prediction_smoothed.c
 print("极性平滑处理完成！")
 
 # 绘图部分
-# 将所有参数逐行绘制为子图
+# 指定画图顺序
+parameter_cols = ['HMF', 'wind_speed', 'HCS_tilt', 'polarity', 'SSN']
+parameter_cols = [col for col in parameter_cols if col in df.columns]
+n = len(parameter_cols)
+fig, axes = plt.subplots(n, 1, figsize=(16, 15), sharex=True)
+plt.rcParams.update({'font.size': 15, 'font.weight': 'bold'})
+# 确保日期为datetime类型
 if not np.issubdtype(df['date'].dtype, np.datetime64):
     df['date'] = pd.to_datetime(df['date'])
-parameter_cols = [col for col in df.columns if col != 'date']
-n = len(parameter_cols)
-fig, axes = plt.subplots(n, 1, figsize=(16, 4*n), sharex=True)
-plt.rcParams.update({'font.size': 15, 'font.weight': 'bold'})
+# 分割日期
+split_date = pd.Timestamp('2019-10-29')
 for ax, col in zip(axes, parameter_cols):
-    ax.plot(df['date'], df[col], label=col)
+    # 分别画两段数据
+    before_mask = df['date'] < split_date
+    after_mask = df['date'] >= split_date
+    ax.plot(df.loc[before_mask, 'date'], df.loc[before_mask, col], color='green', label=f'Observation')
+    ax.plot(df.loc[after_mask, 'date'], df.loc[after_mask, col], color='orange', label=f'Theory Prediction')
     ax.set_ylabel(col, fontsize=12, fontweight='bold')
     ax.axhline(0, color='gray', linestyle=':', linewidth=1)
+    ax.set_xlim(pd.Timestamp('2010-05-20'), pd.Timestamp('2032-01-01'))
     # 标出 NaN 值
     nan_dates = df.loc[df[col].isna(), 'date']
     if not nan_dates.empty:
@@ -79,5 +88,5 @@ for ax, col in zip(axes, parameter_cols):
     ax.tick_params(axis='both', labelsize=12)
 plt.xlabel('Date', fontsize=12, fontweight='bold')
 plt.tight_layout()
-plt.savefig(f'{output_dir}all_parameters.png', dpi=300)
+plt.savefig(f'{output_dir}all_parameters.png', dpi=500)
 # plt.show()

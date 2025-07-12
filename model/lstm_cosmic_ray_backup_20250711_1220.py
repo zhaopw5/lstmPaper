@@ -1,3 +1,58 @@
+"""
+变更日志 - 备份时间: 2025-07-11 12:20:44
+========================================
+检测到以下变更:
+
+比较基准: lstm_cosmic_ray_backup_20250711_1036.py
+当前版本: lstm_cosmic_ray.py
+
+位置: @@ -43,10 +43,10 @@
+删除:     def __init__(self, input_size, hidden_size, num_layers, output_size, dropout=0.4):
+新增:     def __init__(self, input_size, hidden_size, num_layers, output_size, dropout=0.3):
+删除:         self.input_norm = nn.LayerNorm(input_size)
+新增:         # self.input_norm = nn.LayerNorm(input_size)
+位置: @@ -55,7 +55,7 @@
+删除:             nn.LayerNorm(hidden_size//2),
+新增:             # nn.LayerNorm(hidden_size//2),
+位置: @@ -63,7 +63,7 @@
+删除:         x = self.input_norm(x)
+新增:         # x = self.input_norm(x)
+位置: @@ -93,6 +93,10 @@
+新增:     
+新增:     # # 做7天滑动窗口
+新增:     # cosmic_data['helium_flux m^-2sr^-1s^-1GV^-1'] = cosmic_data['helium_flux m^-2sr^-1s^-1GV^-1'].rolling(window=7, min_periods=1, center=True).mean()
+新增: 
+位置: @@ -157,6 +161,10 @@
+新增: 
+新增:     # # 做7天滑动窗口
+新增:     # cosmic_data['helium_flux m^-2sr^-1s^-1GV^-1'] = cosmic_data['helium_flux m^-2sr^-1s^-1GV^-1'].rolling(window=7, min_periods=1, center=True).mean()
+新增: 
+位置: @@ -320,7 +328,7 @@
+删除:     optimizer = optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-5) 
+新增:     optimizer = optim.Adam(model.parameters(), lr=0.001, weight_decay=0) 
+位置: @@ -492,7 +500,7 @@
+删除:     # Subplot 4: Complete time series (2011-2032)
+新增:     # Subplot 4: Complete time series (2011-2025)
+位置: @@ -500,7 +508,7 @@
+删除:         axes[1, 1].set_title('Complete Time Series (2011-2032)', fontsize=12, fontweight='bold')
+新增:         axes[1, 1].set_title('Complete Time Series (2011-2025)', fontsize=12, fontweight='bold')
+位置: @@ -618,8 +626,8 @@
+删除:         extended_results.to_csv('宇宙线预测结果_2011_2032.csv', index=False)
+删除:         print(f"扩展预测结果已保存到 '宇宙线预测结果_2011_2032.csv'")
+新增:         extended_results.to_csv('宇宙线预测结果_2011_2025.csv', index=False)
+新增:         print(f"扩展预测结果已保存到 '宇宙线预测结果_2011_2025.csv'")
+位置: @@ -667,10 +675,10 @@
+删除:     num_layers = 1
+新增:     num_layers = 2
+删除:     model = lstm_model(input_size, hidden_size, num_layers, output_size, dropout=0.4)
+新增:     model = lstm_model(input_size, hidden_size, num_layers, output_size, dropout=0.3)
+位置: @@ -699,10 +707,10 @@
+删除:     # 10. 扩展预测（2011-2032）
+新增:     # 10. 扩展预测（2011-2025）
+删除:     end_date = datetime(2032, 12, 31)
+新增:     end_date = datetime(2025, 12, 31)
+"""
+
 import pandas as pd
 import numpy as np
 import torch

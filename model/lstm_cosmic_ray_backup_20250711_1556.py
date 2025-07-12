@@ -1,3 +1,62 @@
+"""
+变更日志 - 备份时间: 2025-07-11 15:56:37
+========================================
+检测到以下变更:
+
+比较基准: lstm_cosmic_ray_backup_20250711_1036.py
+当前版本: lstm_cosmic_ray.py
+
+位置: @@ -43,10 +43,10 @@
+删除:     def __init__(self, input_size, hidden_size, num_layers, output_size, dropout=0.4):
+新增:     def __init__(self, input_size, hidden_size, num_layers, output_size, dropout=0.3):
+删除:         self.input_norm = nn.LayerNorm(input_size)
+新增:         # self.input_norm = nn.LayerNorm(input_size)
+位置: @@ -55,7 +55,7 @@
+删除:             nn.LayerNorm(hidden_size//2),
+新增:             # nn.LayerNorm(hidden_size//2),
+位置: @@ -63,7 +63,7 @@
+删除:         x = self.input_norm(x)
+新增:         # x = self.input_norm(x)
+位置: @@ -93,6 +93,10 @@
+新增:     
+新增:     # # 做7天滑动窗口
+新增:     # cosmic_data['helium_flux m^-2sr^-1s^-1GV^-1'] = cosmic_data['helium_flux m^-2sr^-1s^-1GV^-1'].rolling(window=7, min_periods=1, center=True).mean()
+新增: 
+位置: @@ -157,6 +161,10 @@
+新增: 
+新增:     # # 做7天滑动窗口
+新增:     # cosmic_data['helium_flux m^-2sr^-1s^-1GV^-1'] = cosmic_data['helium_flux m^-2sr^-1s^-1GV^-1'].rolling(window=7, min_periods=1, center=True).mean()
+新增: 
+位置: @@ -320,7 +328,7 @@
+删除:     optimizer = optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-5) 
+新增:     optimizer = optim.Adam(model.parameters(), lr=0.001, weight_decay=0) 
+位置: @@ -492,7 +500,7 @@
+删除:     # Subplot 4: Complete time series (2011-2032)
+新增:     # Subplot 4: Complete time series (2011-2025)
+位置: @@ -500,7 +508,7 @@
+删除:         axes[1, 1].set_title('Complete Time Series (2011-2032)', fontsize=12, fontweight='bold')
+新增:         axes[1, 1].set_title('Complete Time Series (2011-2025)', fontsize=12, fontweight='bold')
+位置: @@ -618,8 +626,8 @@
+删除:         extended_results.to_csv('宇宙线预测结果_2011_2032.csv', index=False)
+删除:         print(f"扩展预测结果已保存到 '宇宙线预测结果_2011_2032.csv'")
+新增:         extended_results.to_csv('宇宙线预测结果_2011_2025.csv', index=False)
+新增:         print(f"扩展预测结果已保存到 '宇宙线预测结果_2011_2025.csv'")
+位置: @@ -661,16 +669,16 @@
+删除:     train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
+删除:     test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
+新增:     train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True)
+新增:     test_loader = DataLoader(test_dataset, batch_size=128, shuffle=False)
+删除:     num_layers = 1
+新增:     num_layers = 2
+删除:     model = lstm_model(input_size, hidden_size, num_layers, output_size, dropout=0.4)
+新增:     model = lstm_model(input_size, hidden_size, num_layers, output_size, dropout=0.3)
+位置: @@ -699,10 +707,10 @@
+删除:     # 10. 扩展预测（2011-2032）
+新增:     # 10. 扩展预测（2011-2025）
+删除:     end_date = datetime(2032, 12, 31)
+新增:     end_date = datetime(2025, 12, 31)
+"""
+
 import pandas as pd
 import numpy as np
 import torch
@@ -31,29 +90,45 @@ class CosmicRayDataset(Dataset):
     def __getitem__(self, idx):
         return self.X[idx], self.y[idx]
 
-class CorrectedLSTMModel(nn.Module):
-    """修正版LSTM模型 - 简单有效的架构"""
-    def __init__(self, input_size, hidden_size, num_layers, output_size, dropout=0.2):
-        super(CorrectedLSTMModel, self).__init__()
-        self.hidden_size = hidden_size
-        self.num_layers = num_layers
-        
-        # LSTM层
+class lstm_model(nn.Module):
+    """
+    lstm_model 是一个用于时间序列回归预测的神经网络模型，核心结构如下：
+
+    1. LSTM层：2层堆叠，每层64个隐藏单元，能捕捉输入序列（如365天太阳物理参数）的时序特征。
+    2. 全连接层：将LSTM最后一天的输出（包含全部历史信息）映射到最终的预测值（氦通量）。
+       - 先降维到32，ReLU激活，Dropout防止过拟合，再输出1个预测值。
+    3. 适用场景：用一段时间的历史数据预测某一天的数值，适合太阳物理与宇宙线等时序回归任务。
+
+    输入：x，形状为(batch_size, 序列长度, 特征数)
+    输出：预测值，形状为(batch_size, 1)
+    """
+    def __init__(self, input_size, hidden_size, num_layers, output_size, dropout=0.3):
+        super().__init__()
+        # 对 feature 维度 做归一化（LayerNorm）
+        # self.input_norm = nn.LayerNorm(input_size)
         self.lstm = nn.LSTM(input_size, hidden_size, num_layers, 
-                           batch_first=True, dropout=dropout if num_layers > 1 else 0)
+                           batch_first=True, dropout=dropout)
+        self.layer_norm = nn.LayerNorm(hidden_size)
         
-        # 全连接层
+        # 更强的正则化
         self.fc = nn.Sequential(
             nn.Linear(hidden_size, hidden_size // 2),
+            # nn.BatchNorm1d(hidden_size // 2),
+            # nn.LayerNorm(hidden_size//2),
             nn.ReLU(),
-            nn.Dropout(dropout),
+            nn.Dropout(dropout),  # 增加dropout
             nn.Linear(hidden_size // 2, output_size)
         )
     
     def forward(self, x):
-        lstm_out, (h_n, c_n) = self.lstm(x)
-        output = self.fc(lstm_out[:, -1, :])
+        # x: (batch, seq_len, feat)
+        # x = self.input_norm(x)
+        lstm_out, _ = self.lstm(x)
+        h = lstm_out[:, -1, :]
+        h = self.layer_norm(h)
+        output = self.fc(h)
         return output
+    
 
 def debug_data_alignment():
     """调试数据对齐问题"""
@@ -68,6 +143,22 @@ def debug_data_alignment():
     cosmic_data['date YYYY-MM-DD'] = pd.to_datetime(cosmic_data['date YYYY-MM-DD'])
     cosmic_data = cosmic_data[cosmic_data['rigidity_min GV'] == 2.97].copy()
     cosmic_data = cosmic_data.sort_values('date YYYY-MM-DD').reset_index(drop=True)
+    
+    # 线性插值补全缺失数据
+    print(f"插值前宇宙线数据点数: {len(cosmic_data)}")
+    # 创建完整的日期范围
+    full_date_range = pd.date_range(start=cosmic_data['date YYYY-MM-DD'].min(), 
+                                   end=cosmic_data['date YYYY-MM-DD'].max(), freq='D')
+    # 重新索引并线性插值
+    cosmic_data = cosmic_data.set_index('date YYYY-MM-DD').reindex(full_date_range)
+    cosmic_data['helium_flux m^-2sr^-1s^-1GV^-1'] = cosmic_data['helium_flux m^-2sr^-1s^-1GV^-1'].interpolate(method='linear')
+    
+    # # 做7天滑动窗口
+    # cosmic_data['helium_flux m^-2sr^-1s^-1GV^-1'] = cosmic_data['helium_flux m^-2sr^-1s^-1GV^-1'].rolling(window=7, min_periods=1, center=True).mean()
+
+    cosmic_data = cosmic_data.reset_index()
+    cosmic_data.rename(columns={'index': 'date YYYY-MM-DD'}, inplace=True)
+    print(f"插值后宇宙线数据点数: {len(cosmic_data)}")
     
     print(f"太阳数据范围: {solar_data['date'].min()} 到 {solar_data['date'].max()}")
     print(f"宇宙线数据范围: {cosmic_data['date YYYY-MM-DD'].min()} 到 {cosmic_data['date YYYY-MM-DD'].max()}")
@@ -121,6 +212,22 @@ def load_and_check_data():
     cosmic_data = cosmic_data[cosmic_data['rigidity_min GV'] == 2.97].copy()
     cosmic_data = cosmic_data.sort_values('date YYYY-MM-DD').reset_index(drop=True)
     
+    # 线性插值补全缺失数据
+    print(f"插值前宇宙线数据点数: {len(cosmic_data)}")
+    # 创建完整的日期范围
+    full_date_range = pd.date_range(start=cosmic_data['date YYYY-MM-DD'].min(), 
+                                   end=cosmic_data['date YYYY-MM-DD'].max(), freq='D')
+    # 重新索引并线性插值
+    cosmic_data = cosmic_data.set_index('date YYYY-MM-DD').reindex(full_date_range)
+    cosmic_data['helium_flux m^-2sr^-1s^-1GV^-1'] = cosmic_data['helium_flux m^-2sr^-1s^-1GV^-1'].interpolate(method='linear')
+
+    # # 做7天滑动窗口
+    # cosmic_data['helium_flux m^-2sr^-1s^-1GV^-1'] = cosmic_data['helium_flux m^-2sr^-1s^-1GV^-1'].rolling(window=7, min_periods=1, center=True).mean()
+
+    cosmic_data = cosmic_data.reset_index()
+    cosmic_data.rename(columns={'index': 'date YYYY-MM-DD'}, inplace=True)
+    print(f"插值后宇宙线数据点数: {len(cosmic_data)}")
+    
     # 去除重复日期，保留第一个
     cosmic_data = cosmic_data.drop_duplicates('date YYYY-MM-DD', keep='first').reset_index(drop=True)
     
@@ -141,8 +248,8 @@ def load_and_check_data():
     
     return solar_data, cosmic_data
 
-def create_sequences_carefully(solar_data, cosmic_data, sequence_length=365):
-    """非常仔细地创建序列，确保对齐正确"""
+def create_sequences(solar_data, cosmic_data, sequence_length=365):
+    """为每个宇宙线观测点创建对应的365天太阳参数序列，确保时间对齐，处理缺失数据"""
     print(f"\n=== 仔细创建 {sequence_length} 天序列 ===")
     
     solar_features = ['HMF', 'wind_speed', 'HCS_tilt', 'polarity', 'SSN']
@@ -230,7 +337,7 @@ def create_sequences_carefully(solar_data, cosmic_data, sequence_length=365):
     
     return X, y, dates
 
-def normalize_data_carefully(X_train, X_test, y_train, y_test):
+def normalize_data(X_train, X_test, y_train, y_test):
     """仔细进行数据归一化"""
     print(f"\n=== 仔细进行数据归一化 ===")
     
@@ -268,21 +375,34 @@ def normalize_data_carefully(X_train, X_test, y_train, y_test):
     
     return X_train_scaled, X_test_scaled, y_train_scaled, y_test_scaled, scaler_X, scaler_y
 
-def train_corrected_model(model, train_loader, val_loader, num_epochs=100):
-    """训练修正版模型"""
+def train_model(model, train_loader, val_loader, num_epochs=150):
+    """
+    使用MSE损失函数和Adam优化器
+    支持学习率调度（ReduceLROnPlateau）和早停机制（Early Stopping）
+    梯度裁剪防止梯度爆炸
+    """
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model.to(device)
     
+    
+    ################# 可调超参数 ########################################################################################
     criterion = nn.MSELoss()
-    optimizer = optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-5)
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=10, factor=0.5, verbose=True)
+    optimizer = optim.Adam(model.parameters(), lr=0.001, weight_decay=0) 
+    # scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+    #     optimizer, mode='min', factor=0.5, patience=15, min_lr=1e-6
+    # )
+    scheduler = optim.lr_scheduler.OneCycleLR(
+        optimizer, max_lr=1e-3,
+        steps_per_epoch=len(train_loader), epochs=num_epochs
+    )
+
     
     train_losses = []
     val_losses = []
     best_val_loss = float('inf')
     patience_counter = 0
     
-    print(f"开始训练修正模型，使用设备: {device}")
+    print(f"开始训练模型，使用设备: {device}")
     
     for epoch in range(num_epochs):
         # 训练阶段
@@ -296,7 +416,7 @@ def train_corrected_model(model, train_loader, val_loader, num_epochs=100):
             loss = criterion(outputs.squeeze(), y_batch)
             loss.backward()
             
-            # 梯度裁剪
+            # 梯度裁剪防止梯度爆炸
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             
             optimizer.step()
@@ -331,7 +451,7 @@ def train_corrected_model(model, train_loader, val_loader, num_epochs=100):
         if (epoch + 1) % 10 == 0:
             print(f'Epoch [{epoch+1}/{num_epochs}], Train Loss: {train_loss:.6f}, Val Loss: {val_loss:.6f}')
         
-        if patience_counter >= 20:
+        if patience_counter >= 30:  # 增加早停patience
             print(f"早停在第 {epoch+1} 轮")
             break
     
@@ -350,7 +470,7 @@ def create_prediction_dates(start_date, end_date):
     return dates
 
 def predict_cosmic_ray_extended(model, solar_data, prediction_dates, scaler_X, scaler_y, sequence_length=365):
-    """预测宇宙线通量（包含训练期间和未来）"""
+    """使用训练好的模型进行长期预测"""
     print(f"\n=== 扩展预测：{len(prediction_dates)} 个日期 ===")
     
     solar_features = ['HMF', 'wind_speed', 'HCS_tilt', 'polarity', 'SSN']
@@ -405,162 +525,72 @@ def predict_cosmic_ray_extended(model, solar_data, prediction_dates, scaler_X, s
 
 def plot_comprehensive_results(cosmic_data, train_losses, val_losses, test_predictions, test_actuals, test_dates, 
                               extended_pred_dates=None, extended_predictions=None):
-    """绘制综合结果（训练结果 + 扩展预测）"""
-    print("正在绘制综合结果图...")
+    """Plot 4 key results in 2x2 layout"""
+    print("Plotting comprehensive results...")
     
-    # 创建大图
-    fig = plt.figure(figsize=(20, 15))
+    # Create 2x2 layout for 4 subplots
+    fig, axes = plt.subplots(2, 2, figsize=(16, 12))
     
-    # 子图1: 训练损失
-    ax1 = plt.subplot(3, 3, 1)
-    ax1.plot(train_losses, label='训练损失', color='blue', alpha=0.8)
-    ax1.plot(val_losses, label='验证损失', color='red', alpha=0.8)
-    ax1.set_xlabel('训练轮数')
-    ax1.set_ylabel('损失值')
-    ax1.set_title('训练过程')
-    ax1.legend()
-    ax1.grid(True, alpha=0.3)
+    # Subplot 1: Training loss
+    axes[0, 0].plot(train_losses, label='Training Loss', color='blue', alpha=0.8)
+    axes[0, 0].plot(val_losses, label='Validation Loss', color='red', alpha=0.8)
+    axes[0, 0].set_xlabel('Epoch')
+    axes[0, 0].set_ylabel('Loss')
+    axes[0, 0].set_title('Training Process')
+    axes[0, 0].legend()
+    axes[0, 0].grid(True, alpha=0.3)
     
-    # 子图2: 测试集预测效果
-    ax2 = plt.subplot(3, 3, 2)
-    ax2.scatter(test_actuals, test_predictions, alpha=0.6, color='green')
-    ax2.plot([test_actuals.min(), test_actuals.max()], [test_actuals.min(), test_actuals.max()], 'r--', lw=2)
+    # Subplot 2: Test prediction scatter
+    axes[0, 1].scatter(test_actuals, test_predictions, alpha=0.6, color='green')
+    axes[0, 1].plot([test_actuals.min(), test_actuals.max()], [test_actuals.min(), test_actuals.max()], 'r--', lw=2)
     r2 = r2_score(test_actuals, test_predictions)
-    ax2.set_xlabel('实际值')
-    ax2.set_ylabel('预测值')
-    ax2.set_title(f'测试集预测效果 (R²={r2:.4f})')
-    ax2.grid(True, alpha=0.3)
+    axes[0, 1].set_xlabel('Actual Values')
+    axes[0, 1].set_ylabel('Predicted Values')
+    axes[0, 1].set_title(f'Test Set Prediction (R²={r2:.4f})')
+    axes[0, 1].grid(True, alpha=0.3)
     
-    # 子图3: 测试集时间序列
-    ax3 = plt.subplot(3, 3, 3)
-    ax3.plot(test_dates, test_actuals, label='实际值', alpha=0.8, linewidth=2, color='blue')
-    ax3.plot(test_dates, test_predictions, label='预测值', alpha=0.8, linewidth=2, color='red')
-    ax3.set_xlabel('日期')
-    ax3.set_ylabel('氦通量')
-    ax3.set_title('测试集时间序列预测')
-    ax3.legend()
-    ax3.grid(True, alpha=0.3)
-    ax3.tick_params(axis='x', rotation=45)
+    # Subplot 3: Test time series
+    axes[1, 0].plot(test_dates, test_actuals, label='Actual', alpha=0.8, linewidth=2, color='blue')
+    axes[1, 0].plot(test_dates, test_predictions, label='Predicted', alpha=0.8, linewidth=2, color='red')
+    axes[1, 0].set_xlabel('Date')
+    axes[1, 0].set_ylabel('Helium Flux')
+    axes[1, 0].set_title('Test Set Time Series')
+    axes[1, 0].legend()
+    axes[1, 0].grid(True, alpha=0.3)
+    axes[1, 0].tick_params(axis='x', rotation=45)
     
-    # 子图4: 残差分析
-    residuals = test_actuals - test_predictions
-    ax4 = plt.subplot(3, 3, 4)
-    ax4.scatter(test_predictions, residuals, alpha=0.6, color='purple')
-    ax4.axhline(y=0, color='r', linestyle='--')
-    ax4.set_xlabel('预测值')
-    ax4.set_ylabel('残差')
-    ax4.set_title('残差分析')
-    ax4.grid(True, alpha=0.3)
-    
-    # 子图5: 残差分布
-    ax5 = plt.subplot(3, 3, 5)
-    ax5.hist(residuals, bins=20, alpha=0.7, color='orange')
-    ax5.set_xlabel('残差')
-    ax5.set_ylabel('频次')
-    ax5.set_title('残差分布')
-    ax5.grid(True, alpha=0.3)
-    
-    # 如果有扩展预测数据，绘制完整时间序列
+    # Subplot 4: Complete time series (2011-2025)
     if extended_pred_dates is not None and extended_predictions is not None:
-        # 子图6: 完整时间序列（2011-2032）
-        ax6 = plt.subplot(3, 2, 3)
         obs_dates = cosmic_data['date YYYY-MM-DD']
         obs_flux = cosmic_data['helium_flux m^-2sr^-1s^-1GV^-1']
         
-        ax6.plot(obs_dates, obs_flux, 'b-', label='实际观测数据', linewidth=1.5, alpha=0.8)
-        ax6.plot(extended_pred_dates, extended_predictions, 'r-', label='LSTM预测数据', linewidth=1.5, alpha=0.8)
-        ax6.axvline(x=obs_dates.iloc[-1], color='green', linestyle='--', alpha=0.7, label='观测数据结束')
-        ax6.set_title('宇宙线氦通量预测：2011-2032年完整时间序列', fontsize=12, fontweight='bold')
-        ax6.set_xlabel('日期')
-        ax6.set_ylabel('氦通量 (m⁻²sr⁻¹s⁻¹GV⁻¹)')
-        ax6.legend()
-        ax6.grid(True, alpha=0.3)
-        ax6.xaxis.set_major_formatter(mdates.DateFormatter('%Y'))
-        ax6.xaxis.set_major_locator(mdates.YearLocator())
+        axes[1, 1].plot(obs_dates, obs_flux, 'b-', label='Observed Data', linewidth=1.5, alpha=0.8)
+        axes[1, 1].plot(extended_pred_dates, extended_predictions, 'r-', label='LSTM Predictions', linewidth=1.5, alpha=0.8)
+        axes[1, 1].axvline(x=obs_dates.iloc[-1], color='green', linestyle='--', alpha=0.7, label='Observation End')
+        axes[1, 1].set_title('Complete Time Series (2011-2025)', fontsize=12, fontweight='bold')
+        axes[1, 1].set_xlabel('Date')
+        axes[1, 1].set_ylabel('Helium Flux (m⁻²sr⁻¹s⁻¹GV⁻¹)')
+        axes[1, 1].legend()
+        axes[1, 1].grid(True, alpha=0.3)
+        axes[1, 1].xaxis.set_major_formatter(mdates.DateFormatter('%Y'))
+        axes[1, 1].xaxis.set_major_locator(mdates.YearLocator())
+    else:
+        # If no extended predictions, show model performance metrics
+        residuals = test_actuals - test_predictions
+        mse = np.mean(residuals**2)
+        mae = np.mean(np.abs(residuals))
+        r2 = r2_score(test_actuals, test_predictions)
         
-        # 子图7: 未来预测部分（2019-2032）
-        ax7 = plt.subplot(3, 2, 4)
-        future_start = obs_dates.iloc[-1]
-        future_mask = [d > future_start for d in extended_pred_dates]
-        future_pred_dates = [d for i, d in enumerate(extended_pred_dates) if future_mask[i]]
-        future_predictions = [p for i, p in enumerate(extended_predictions) if future_mask[i]]
-        
-        # 显示最后一段观测数据作为连接
-        recent_obs = obs_dates.iloc[-100:]  # 最后100个观测点
-        recent_flux = obs_flux.iloc[-100:]
-        
-        ax7.plot(recent_obs, recent_flux, 'b-', label='最近观测数据', linewidth=2, alpha=0.8)
-        if future_pred_dates:
-            ax7.plot(future_pred_dates, future_predictions, 'r-', 
-                    label='未来预测', linewidth=2, alpha=0.8)
-        ax7.axvline(x=obs_dates.iloc[-1], color='green', linestyle='--', alpha=0.7, label='预测起始点')
-        ax7.set_title('未来宇宙线通量预测 (2019-2032)', fontsize=12, fontweight='bold')
-        ax7.set_xlabel('日期')
-        ax7.set_ylabel('氦通量 (m⁻²sr⁻¹s⁻¹GV⁻¹)')
-        ax7.legend()
-        ax7.grid(True, alpha=0.3)
-        ax7.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
-        ax7.xaxis.set_major_locator(mdates.YearLocator())
-        
-        # 子图8: 预测统计对比
-        ax8 = plt.subplot(3, 3, 8)
-        
-        # 观测期间的预测数据
-        overlap_start = obs_dates.iloc[0]
-        overlap_end = obs_dates.iloc[-1]
-        overlap_mask = [(d >= overlap_start) and (d <= overlap_end) for d in extended_pred_dates]
-        overlap_predictions = [p for i, p in enumerate(extended_predictions) if overlap_mask[i]]
-        
-        # 统计数据
-        obs_stats = [obs_flux.mean(), obs_flux.std(), obs_flux.min(), obs_flux.max()]
-        pred_stats = [np.mean(overlap_predictions), np.std(overlap_predictions), 
-                     np.min(overlap_predictions), np.max(overlap_predictions)]
-        future_stats = [np.mean(future_predictions), np.std(future_predictions),
-                       np.min(future_predictions), np.max(future_predictions)]
-        
-        x_pos = np.arange(4)
-        width = 0.25
-        
-        ax8.bar(x_pos - width, obs_stats, width, label='观测数据', alpha=0.7)
-        ax8.bar(x_pos, pred_stats, width, label='预测数据(训练期)', alpha=0.7)
-        ax8.bar(x_pos + width, future_stats, width, label='预测数据(未来)', alpha=0.7)
-        
-        ax8.set_xlabel('统计指标')
-        ax8.set_ylabel('数值')
-        ax8.set_title('数据统计对比')
-        ax8.set_xticks(x_pos)
-        ax8.set_xticklabels(['均值', '标准差', '最小值', '最大值'])
-        ax8.legend()
-        ax8.grid(True, alpha=0.3)
-        
-        # 子图9: 误差随时间变化
-        ax9 = plt.subplot(3, 3, 9)
-        if len(overlap_predictions) > 0:
-            # 计算重叠期间的误差
-            aligned_obs = []
-            aligned_pred = []
-            aligned_dates = []
-            
-            for i, pred_date in enumerate(extended_pred_dates):
-                if overlap_mask[i]:
-                    matching_obs = cosmic_data[cosmic_data['date YYYY-MM-DD'] == pred_date]
-                    if not matching_obs.empty:
-                        aligned_obs.append(matching_obs['helium_flux m^-2sr^-1s^-1GV^-1'].iloc[0])
-                        aligned_pred.append(extended_predictions[i])
-                        aligned_dates.append(pred_date)
-            
-            if len(aligned_obs) > 0:
-                abs_errors = np.abs(np.array(aligned_obs) - np.array(aligned_pred))
-                ax9.plot(aligned_dates, abs_errors, alpha=0.7, color='red')
-                ax9.set_xlabel('日期')
-                ax9.set_ylabel('绝对误差')
-                ax9.set_title('预测误差随时间变化')
-                ax9.grid(True, alpha=0.3)
-                ax9.tick_params(axis='x', rotation=45)
+        axes[1, 1].text(0.1, 0.8, f'MSE: {mse:.6f}', transform=axes[1, 1].transAxes, fontsize=14)
+        axes[1, 1].text(0.1, 0.6, f'MAE: {mae:.6f}', transform=axes[1, 1].transAxes, fontsize=14)
+        axes[1, 1].text(0.1, 0.4, f'R²: {r2:.6f}', transform=axes[1, 1].transAxes, fontsize=14)
+        axes[1, 1].text(0.1, 0.2, f'Samples: {len(test_actuals)}', transform=axes[1, 1].transAxes, fontsize=14)
+        axes[1, 1].set_title('Model Performance Metrics')
+        axes[1, 1].axis('off')
     
     plt.tight_layout()
-    plt.savefig('完整LSTM预测结果.png', dpi=300, bbox_inches='tight')
-    plt.show()
+    plt.savefig('LSTM_Prediction_Results.png', dpi=300, bbox_inches='tight')
+
 
 def calculate_metrics_and_stats(cosmic_data, test_actuals, test_predictions, 
                                extended_pred_dates=None, extended_predictions=None):
@@ -655,8 +685,8 @@ def save_complete_results(test_dates, test_actuals, test_predictions,
             'date': extended_pred_dates,
             'predicted_flux': extended_predictions
         })
-        extended_results.to_csv('宇宙线预测结果_2011_2032.csv', index=False)
-        print(f"扩展预测结果已保存到 '宇宙线预测结果_2011_2032.csv'")
+        extended_results.to_csv('宇宙线预测结果_2011_2025.csv', index=False)
+        print(f"扩展预测结果已保存到 '宇宙线预测结果_2011_2025.csv'")
 
 def main():
     """主函数"""
@@ -670,14 +700,14 @@ def main():
     solar_data, cosmic_data = load_and_check_data()
     
     # 3. 仔细创建序列
-    X, y, dates = create_sequences_carefully(solar_data, cosmic_data, sequence_length=365)
+    X, y, dates = create_sequences(solar_data, cosmic_data, sequence_length=365)
     
     if len(X) == 0:
         print("错误: 没有成功创建任何训练样例！")
         return
     
     # 4. 划分数据集 (时间顺序)
-    train_ratio = 0.8
+    train_ratio = 0.85
     split_idx = int(len(X) * train_ratio)
     
     X_train, X_test = X[:split_idx], X[split_idx:]
@@ -691,15 +721,15 @@ def main():
     print(f"  测试时间范围: {dates_test[0]} 到 {dates_test[-1]}")
     
     # 5. 仔细归一化
-    X_train_scaled, X_test_scaled, y_train_scaled, y_test_scaled, scaler_X, scaler_y = normalize_data_carefully(
+    X_train_scaled, X_test_scaled, y_train_scaled, y_test_scaled, scaler_X, scaler_y = normalize_data(
         X_train, X_test, y_train, y_test)
     
     # 6. 创建数据加载器
     train_dataset = CosmicRayDataset(X_train_scaled, y_train_scaled)
     test_dataset = CosmicRayDataset(X_test_scaled, y_test_scaled)
     
-    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
-    test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
+    train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True)
+    test_loader = DataLoader(test_dataset, batch_size=128, shuffle=False)
     
     # 7. 创建LSTM模型
     input_size = X.shape[2]  # 5个特征
@@ -707,7 +737,7 @@ def main():
     num_layers = 2
     output_size = 1
     
-    model = CorrectedLSTMModel(input_size, hidden_size, num_layers, output_size, dropout=0.2)
+    model = lstm_model(input_size, hidden_size, num_layers, output_size, dropout=0.3)
     
     print(f"\n模型配置:")
     print(f"  输入特征数: {input_size}")
@@ -716,7 +746,7 @@ def main():
     print(f"  总参数数: {sum(p.numel() for p in model.parameters()):,}")
     
     # 8. 训练模型
-    train_losses, val_losses = train_corrected_model(model, train_loader, test_loader, num_epochs=100)
+    train_losses, val_losses = train_model(model, train_loader, test_loader, num_epochs=150)
     
     # 9. 评估测试集
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -736,10 +766,10 @@ def main():
     test_predictions = scaler_y.inverse_transform(np.array(test_predictions).reshape(-1, 1)).flatten()
     test_actuals = scaler_y.inverse_transform(np.array(test_actuals).reshape(-1, 1)).flatten()
     
-    # 10. 扩展预测（2011-2032）
+    # 10. 扩展预测（2011-2025）
     print(f"\n=== 开始扩展预测 ===")
     start_date = datetime(2011, 5, 20)
-    end_date = datetime(2032, 12, 31)
+    end_date = datetime(2025, 12, 31)
     prediction_dates = create_prediction_dates(start_date, end_date)
     
     print(f"将预测从 {start_date.strftime('%Y-%m-%d')} 到 {end_date.strftime('%Y-%m-%d')}")

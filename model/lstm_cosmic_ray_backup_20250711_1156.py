@@ -1,3 +1,42 @@
+"""
+变更日志 - 备份时间: 2025-07-11 11:56:40
+========================================
+检测到以下变更:
+
+比较基准: lstm_cosmic_ray_backup_20250711_1036.py
+当前版本: lstm_cosmic_ray.py
+
+位置: @@ -43,10 +43,10 @@
+删除:     def __init__(self, input_size, hidden_size, num_layers, output_size, dropout=0.4):
+新增:     def __init__(self, input_size, hidden_size, num_layers, output_size, dropout=0.3):
+删除:         self.input_norm = nn.LayerNorm(input_size)
+新增:         # self.input_norm = nn.LayerNorm(input_size)
+位置: @@ -55,7 +55,7 @@
+删除:             nn.LayerNorm(hidden_size//2),
+新增:             # nn.LayerNorm(hidden_size//2),
+位置: @@ -63,7 +63,7 @@
+删除:         x = self.input_norm(x)
+新增:         # x = self.input_norm(x)
+位置: @@ -93,6 +93,10 @@
+新增:     
+新增:     # 做7天滑动窗口
+新增:     cosmic_data['helium_flux m^-2sr^-1s^-1GV^-1'] = cosmic_data['helium_flux m^-2sr^-1s^-1GV^-1'].rolling(window=7, min_periods=1, center=True).mean()
+新增: 
+位置: @@ -157,6 +161,10 @@
+新增: 
+新增:     # 做7天滑动窗口
+新增:     cosmic_data['helium_flux m^-2sr^-1s^-1GV^-1'] = cosmic_data['helium_flux m^-2sr^-1s^-1GV^-1'].rolling(window=7, min_periods=1, center=True).mean()
+新增: 
+位置: @@ -320,7 +328,7 @@
+删除:     optimizer = optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-5) 
+新增:     optimizer = optim.Adam(model.parameters(), lr=0.001, weight_decay=0) 
+位置: @@ -667,10 +675,10 @@
+删除:     num_layers = 1
+新增:     num_layers = 2
+删除:     model = lstm_model(input_size, hidden_size, num_layers, output_size, dropout=0.4)
+新增:     model = lstm_model(input_size, hidden_size, num_layers, output_size, dropout=0.3)
+"""
+
 import pandas as pd
 import numpy as np
 import torch
@@ -94,8 +133,8 @@ def debug_data_alignment():
     cosmic_data = cosmic_data.set_index('date YYYY-MM-DD').reindex(full_date_range)
     cosmic_data['helium_flux m^-2sr^-1s^-1GV^-1'] = cosmic_data['helium_flux m^-2sr^-1s^-1GV^-1'].interpolate(method='linear')
     
-    # # 做7天滑动窗口
-    # cosmic_data['helium_flux m^-2sr^-1s^-1GV^-1'] = cosmic_data['helium_flux m^-2sr^-1s^-1GV^-1'].rolling(window=7, min_periods=1, center=True).mean()
+    # 做7天滑动窗口
+    cosmic_data['helium_flux m^-2sr^-1s^-1GV^-1'] = cosmic_data['helium_flux m^-2sr^-1s^-1GV^-1'].rolling(window=7, min_periods=1, center=True).mean()
 
     cosmic_data = cosmic_data.reset_index()
     cosmic_data.rename(columns={'index': 'date YYYY-MM-DD'}, inplace=True)
@@ -162,8 +201,8 @@ def load_and_check_data():
     cosmic_data = cosmic_data.set_index('date YYYY-MM-DD').reindex(full_date_range)
     cosmic_data['helium_flux m^-2sr^-1s^-1GV^-1'] = cosmic_data['helium_flux m^-2sr^-1s^-1GV^-1'].interpolate(method='linear')
 
-    # # 做7天滑动窗口
-    # cosmic_data['helium_flux m^-2sr^-1s^-1GV^-1'] = cosmic_data['helium_flux m^-2sr^-1s^-1GV^-1'].rolling(window=7, min_periods=1, center=True).mean()
+    # 做7天滑动窗口
+    cosmic_data['helium_flux m^-2sr^-1s^-1GV^-1'] = cosmic_data['helium_flux m^-2sr^-1s^-1GV^-1'].rolling(window=7, min_periods=1, center=True).mean()
 
     cosmic_data = cosmic_data.reset_index()
     cosmic_data.rename(columns={'index': 'date YYYY-MM-DD'}, inplace=True)
@@ -500,7 +539,7 @@ def plot_comprehensive_results(cosmic_data, train_losses, val_losses, test_predi
     axes[1, 0].grid(True, alpha=0.3)
     axes[1, 0].tick_params(axis='x', rotation=45)
     
-    # Subplot 4: Complete time series (2011-2025)
+    # Subplot 4: Complete time series (2011-2032)
     if extended_pred_dates is not None and extended_predictions is not None:
         obs_dates = cosmic_data['date YYYY-MM-DD']
         obs_flux = cosmic_data['helium_flux m^-2sr^-1s^-1GV^-1']
@@ -508,7 +547,7 @@ def plot_comprehensive_results(cosmic_data, train_losses, val_losses, test_predi
         axes[1, 1].plot(obs_dates, obs_flux, 'b-', label='Observed Data', linewidth=1.5, alpha=0.8)
         axes[1, 1].plot(extended_pred_dates, extended_predictions, 'r-', label='LSTM Predictions', linewidth=1.5, alpha=0.8)
         axes[1, 1].axvline(x=obs_dates.iloc[-1], color='green', linestyle='--', alpha=0.7, label='Observation End')
-        axes[1, 1].set_title('Complete Time Series (2011-2025)', fontsize=12, fontweight='bold')
+        axes[1, 1].set_title('Complete Time Series (2011-2032)', fontsize=12, fontweight='bold')
         axes[1, 1].set_xlabel('Date')
         axes[1, 1].set_ylabel('Helium Flux (m⁻²sr⁻¹s⁻¹GV⁻¹)')
         axes[1, 1].legend()
@@ -626,8 +665,8 @@ def save_complete_results(test_dates, test_actuals, test_predictions,
             'date': extended_pred_dates,
             'predicted_flux': extended_predictions
         })
-        extended_results.to_csv('宇宙线预测结果_2011_2025.csv', index=False)
-        print(f"扩展预测结果已保存到 '宇宙线预测结果_2011_2025.csv'")
+        extended_results.to_csv('宇宙线预测结果_2011_2032.csv', index=False)
+        print(f"扩展预测结果已保存到 '宇宙线预测结果_2011_2032.csv'")
 
 def main():
     """主函数"""
@@ -707,10 +746,10 @@ def main():
     test_predictions = scaler_y.inverse_transform(np.array(test_predictions).reshape(-1, 1)).flatten()
     test_actuals = scaler_y.inverse_transform(np.array(test_actuals).reshape(-1, 1)).flatten()
     
-    # 10. 扩展预测（2011-2025）
+    # 10. 扩展预测（2011-2032）
     print(f"\n=== 开始扩展预测 ===")
     start_date = datetime(2011, 5, 20)
-    end_date = datetime(2025, 12, 31)
+    end_date = datetime(2032, 12, 31)
     prediction_dates = create_prediction_dates(start_date, end_date)
     
     print(f"将预测从 {start_date.strftime('%Y-%m-%d')} 到 {end_date.strftime('%Y-%m-%d')}")

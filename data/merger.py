@@ -266,11 +266,22 @@ def main():
     
     # 插值补全缺失值，使数据连续
     merged_data.interpolate(method='linear', limit_direction='both', inplace=True)
+
     # 保存插值后的连续数据
-    output_file_continuous = output_dir / "solar_physics_data_1985_2025.csv"
+    output_file_continuous = output_dir / "solar_physics_data_1985_2025_original.csv"
     merged_data.to_csv(output_file_continuous, index=False)
     print(f"插值后的连续数据已保存到: {output_file_continuous}")
     
+    # # 对除了日期和极性列外的其他列进行移动平均
+    # cols_to_smooth = ['HMF', 'wind_speed', 'SSN', 'HCS_tilt']
+    # merged_data[cols_to_smooth] = merged_data[cols_to_smooth].rolling(window=7, min_periods=1, center=True).mean()
+    # print("对数据进行了7天的移动平均平滑处理")
+
+    # 保存插值后的连续数据
+    output_file_ma = output_dir / "solar_physics_data_1985_2025.csv"
+    merged_data.to_csv(output_file_ma, index=False)
+    print(f"插值后的连续数据已保存到: {output_file_ma}")
+
     # 生成数据摘要报告
     # generate_data_summary_report(merged_data, output_dir / "data_summary_report.txt")
     

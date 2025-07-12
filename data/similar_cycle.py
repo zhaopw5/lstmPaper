@@ -481,12 +481,12 @@ class ImprovedSolarCycleSimilarityPredictor:
             if param == 'polarity':
                 ax.plot(prediction_results['date'], prediction_results[param], 
                        label='Polarity Prediction (22-year cycle)', 
-                       color='red', linewidth=4, linestyle='--')
+                       color='red', linewidth=2, linestyle='--')
             else:
                 ax.plot(prediction_results['date'], prediction_results[param], 
                        label='Prediction (11-year cycle)', 
-                       color='red', linewidth=4, linestyle='--')
-            
+                       color='red', linewidth=2, linestyle='--')
+
             # **预测起点**
             ax.axvline(x=prediction_start_date, color='black', linestyle='-', 
                       alpha=0.9, linewidth=3, label='Prediction Start' if i == 0 else '')
@@ -535,7 +535,7 @@ def main():
     solar_data = predictor.load_solar_data(solar_data_file)
     
     prediction_start_date = datetime(2019, 10, 30)
-    prediction_end_date = datetime(2030, 12, 31)
+    prediction_end_date = datetime(2033, 1, 1)
     prediction_days = (prediction_end_date - prediction_start_date).days + 1
     print(f"\n🎯 **预测开始日期:** {prediction_start_date.strftime('%Y-%m-%d')}")
     print(f"🎯 **预测结束日期:** {prediction_end_date.strftime('%Y-%m-%d')}")

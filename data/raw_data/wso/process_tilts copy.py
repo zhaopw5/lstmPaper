@@ -6,20 +6,17 @@ from scipy.interpolate import interp1d
 import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
 
-#%%
+
 # Read CSV file
 data = pd.read_csv('tilts.csv')
-#%%
+
 # Convert 'Start Date' including hour info to datetime
 data['start_date'] = pd.to_datetime(data['Start Date'].str.replace('h', ''), format="%Y-%m-%d %H")
 
-#%%
 # Calculate center date between adjacent start dates
 data['next_start'] = data['start_date'].shift(-1)
-data['date'] = data['start_date'] ###############################################################
-# data['date'] = data['start_date'] + (data['next_start'] - data['start_date']) / 2
+data['date'] = data['start_date'] + (data['next_start'] - data['start_date']) / 2
 
-#%%
 # For the last row, use the same interval as previous
 last_interval = data['date'].iloc[-2] - data['start_date'].iloc[-2]
 data.loc[data.index[-1], 'date'] = data['start_date'].iloc[-1] + last_interval
@@ -27,12 +24,10 @@ data.loc[data.index[-1], 'date'] = data['start_date'].iloc[-1] + last_interval
 print("Using midpoint dates between adjacent Carrington Rotations")
 print(f"Example: Start1 {data['start_date'].iloc[0]} Start2 {data['start_date'].iloc[1]} -> Center {data['date'].iloc[0]}")
 
-
-#%%
 # # save data:
 # data.to_csv('tilts_update.csv', index=False)
 
-#%%
+
 # 文件路径
 output_file = '/home/phil/Files/lstmPaper/data/raw_data/wso/tilts_daily.csv'
 plot_file = '/home/phil/Files/lstmPaper/data/raw_data/wso/tilts_comparison.png'
@@ -47,7 +42,6 @@ original_df = data.copy()
 original_df['start_date'] = pd.to_datetime(original_df['start_date'])
 original_df['next_start'] = pd.to_datetime(original_df['next_start'])
 original_df['date'] = pd.to_datetime(original_df['date'])
-# original_df['date'] = pd.to_datetime(original_df['date'])
 
 print(f"数据加载完成，共 {len(original_df)} 个Carr Rotation周期")
 print(f"时间范围: {original_df['start_date'].min()} 到 {original_df['next_start'].max()}")
@@ -62,11 +56,9 @@ print(f"插值时间范围: {start_date} 到 {end_date}")
 daily_dates = pd.date_range(start=start_date, end=end_date, freq='D')
 print(f"将生成 {len(daily_dates)} 天的日分辨率数据")
 
-
-#%%
 # 3. 执行线性插值
 # 准备插值数据 - 使用Carr Rotation的中心日期作为插值点
-carr_dates = original_df['date'].dropna()########################################################
+carr_dates = original_df['date'].dropna()
 carr_timestamps = carr_dates.astype('int64') // 10**9  # 转换为时间戳
 
 # 创建日分辨率时间戳
@@ -84,11 +76,6 @@ for col in columns_to_interpolate:
     
     # 获取有效数据
     valid_data = original_df[col].dropna()
-    # # 检查valid_data的index是否连续：
-    # if not valid_data.index.is_monotonic_increasing:
-    #     print(f"警告: {col} 列的有效数据点索引不连续，跳过插值")
-    #     continue
-
     valid_dates = original_df.loc[valid_data.index, 'date'].dropna()
     valid_timestamps = valid_dates.astype('int64') // 10**9
     

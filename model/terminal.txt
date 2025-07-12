@@ -1,0 +1,16 @@
+Traceback (most recent call last):
+  File "/home/phil/Files/lstmPaper/model/lstm_cosmic_ray.py", line 745, in <module>
+    main()
+  File "/home/phil/Files/lstmPaper/model/lstm_cosmic_ray.py", line 682, in main
+    train_losses, val_losses = train_model(model, train_loader, test_loader, num_epochs=150)
+  File "/home/phil/Files/lstmPaper/model/lstm_cosmic_ray.py", line 348, in train_model
+    outputs = model(X_batch)
+  File "/home/phil/miniconda3/envs/pytorch/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1501, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/phil/Files/lstmPaper/model/lstm_cosmic_ray.py", line 66, in forward
+    x = self.input_norm(x)
+  File "/home/phil/miniconda3/envs/pytorch/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1614, in __getattr__
+    raise AttributeError("'{}' object has no attribute '{}'".format(
+AttributeError: 'lstm_model' object has no attribute 'input_norm'
+(pytorch) phil@ss0:~/Files/lstmPaper/model$ 
+
