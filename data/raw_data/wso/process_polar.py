@@ -172,7 +172,7 @@ for i in range(len(north_daily)):
 
 # Smooth polarity transitions using sigmoid
 print("Smoothing polarity transitions...")
-def smooth_polarity_transitions(polarity_list, window_size=100, steepness=0.8):
+def smooth_polarity_transitions(polarity_list, window_size=1000, steepness=2):
     """Apply sigmoid smoothing to polarity transitions"""
     smoothed = polarity_list.copy()
     

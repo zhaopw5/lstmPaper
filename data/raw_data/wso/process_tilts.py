@@ -16,8 +16,8 @@ data['start_date'] = pd.to_datetime(data['Start Date'].str.replace('h', ''), for
 #%%
 # Calculate center date between adjacent start dates
 data['next_start'] = data['start_date'].shift(-1)
-data['date'] = data['start_date'] ###############################################################
-# data['date'] = data['start_date'] + (data['next_start'] - data['start_date']) / 2
+# data['date'] = data['start_date']
+data['date'] = data['start_date'] + (data['next_start'] - data['start_date']) / 2
 
 #%%
 # For the last row, use the same interval as previous
@@ -84,10 +84,6 @@ for col in columns_to_interpolate:
     
     # 获取有效数据
     valid_data = original_df[col].dropna()
-    # # 检查valid_data的index是否连续：
-    # if not valid_data.index.is_monotonic_increasing:
-    #     print(f"警告: {col} 列的有效数据点索引不连续，跳过插值")
-    #     continue
 
     valid_dates = original_df.loc[valid_data.index, 'date'].dropna()
     valid_timestamps = valid_dates.astype('int64') // 10**9

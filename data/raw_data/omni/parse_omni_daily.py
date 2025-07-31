@@ -81,37 +81,21 @@ def parse_omni_daily_data():
     # 读取所有行
     with open(data_file, 'r') as f:
         lines = f.readlines()
-    
     print(f"读取了 {len(lines)} 行数据")
-    
+
     # 解析数据
     data_rows = []
-    
     for line_num, line in enumerate(lines):
-        try:
-            # 分割数据（空格分隔）
-            values = line.strip().split()
-            
-            # 检查年份范围（1980-2025）
-            if len(values) > 0:
-                year = int(values[0])
-                if year < 1980 or year > 2025:
-                    continue
-                
-                # 确保有足够的字段
-                if len(values) >= 55:  # 至少要有主要字段
-                    # 补齐缺少的字段
-                    while len(values) < len(column_names):
-                        values.append('999.9')
-                    
-                    # 截断多余的字段
-                    values = values[:len(column_names)]
-                    
-                    data_rows.append(values)
-                    
-        except (ValueError, IndexError) as e:
-            print(f"警告：第 {line_num+1} 行数据解析失败: {e}")
+        values = line.strip().split()
+        if len(values) == 0:
             continue
+        if len(values) != len(column_names):
+            print(f"字段数不一致：第 {line_num+1} 行，字段数 {len(values)}，内容: {values}")
+            raise Exception(f"数据格式错误：第 {line_num+1} 行字段数为 {len(values)}，应为 {len(column_names)}")
+        year = int(values[0])
+        if year < 1980 or year > 2025:
+            continue
+        data_rows.append(values)
     
     print(f"筛选出 {len(data_rows)} 行有效数据（1980-2025年）")
     
@@ -156,7 +140,7 @@ def parse_omni_daily_data():
             df[col] = df[col].replace(fill_val, np.nan)
     
     # 保存为CSV
-    output_file = 'omni_daily_1980_2025.csv'
+    output_file = 'omni_daily_1980_2025_new.csv'
     df.to_csv(output_file, index=False)
     
     print(f"\n数据保存到: {output_file}")

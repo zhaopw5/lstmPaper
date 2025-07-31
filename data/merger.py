@@ -72,7 +72,7 @@ def load_wso_polar_data(file_path):
     # 查找极性列（可能的列名）
     polarity_col = None
     for col in df.columns:
-        if 'polarity' in col.lower():
+        if col.lower() == 'polarity_raw':
             polarity_col = col
             break
     
