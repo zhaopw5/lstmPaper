@@ -1,0 +1,15 @@
+2025-08-05 11:16:33,300 INFO: === Data Alignment Debug ===
+2025-08-05 11:16:33,301 INFO: Solar data range: 1985-01-01 00:00:00 to 2033-01-01 00:00:00
+2025-08-05 11:16:33,301 INFO: Cosmic data range: 2011-05-20 00:00:00 to 2019-10-29 00:00:00
+2025-08-05 11:16:33,301 INFO: Total solar days: 17533
+2025-08-05 11:16:33,302 INFO: Total cosmic days before interpolation: 2824
+2025-08-05 11:16:33,338 INFO: Missing solar days: 0
+2025-08-05 11:16:33,338 INFO: Missing cosmic days: 261
+2025-08-05 11:16:33,338 INFO: First 5 missing cosmic dates: [Timestamp('2011-06-04 00:00:00'), Timestamp('2012-11-01 00:00:00'), Timestamp('2013-09-10 00:00:00'), Timestamp('2013-09-11 00:00:00'), Timestamp('2013-10-21 00:00:00')]
+2025-08-05 11:16:33,340 INFO: Duplicate solar dates: 0
+2025-08-05 11:16:33,340 INFO: Duplicate cosmic dates: 0
+2025-08-05 11:16:33,340 INFO: Interpolating cosmic data...
+2025-08-05 11:16:33,343 INFO: Total cosmic days after interpolation: 3085
+2025-08-05 11:16:33,343 INFO: Final data summary:
+2025-08-05 11:16:33,343 INFO: Solar data: 17533 days (1985-01-01 00:00:00 - 2033-01-01 00:00:00)
+2025-08-05 11:16:33,343 INFO: Cosmic data: 3085 days (2011-05-20 00:00:00 - 2019-10-29 00:00:00)

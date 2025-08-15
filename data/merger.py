@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 太阳物理数据提取与整合脚本
-从OMNI、SILSO和WSO数据源中提取特定参数并整合
+从OMNI、SILSO和WSO和OSF数据源中提取特定参数并整合
 """
 
 import pandas as pd
