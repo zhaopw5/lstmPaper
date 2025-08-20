@@ -1,0 +1,126 @@
+(pytorch) phil@ss0:~/Files/lstmPaper/model3_v250818_spectrum$ python lstm_cosmic_ray.py
+=== 完整LSTM宇宙线预测模型（包含训练和扩展预测）===
+
+读取太阳数据: /home/phil/Files/lstmPaper/data/outputs/cycle_analysis/solar_physics_data_1985_2025_v250820.csv
+读取宇宙线数据: /home/phil/Files/lstmPaper/data/raw_data/ams/helium.csv
+成功加载 18 个刚度的数据: ['1.71GV', '1.92GV', '2.15GV', '2.4GV', '2.67GV', '2.97GV', '3.29GV', '3.64GV', '4.02GV', '4.43GV', '4.88GV', '5.37GV', '5.9GV', '6.47GV', '7.09GV', '7.76GV', '8.48GV', '9.26GV']
+=== Data Alignment Debug ===
+Solar data range: 1985-01-01 00:00:00 to 2024-12-25 00:00:00
+Cosmic data range: 2011-05-20 00:00:00 to 2019-10-29 00:00:00
+Total solar days: 14604
+Total cosmic days before interpolation: 2824
+Missing solar days: 0
+Missing cosmic days: 261
+First 5 missing cosmic dates: [Timestamp('2011-06-04 00:00:00'), Timestamp('2012-11-01 00:00:00'), Timestamp('2013-09-10 00:00:00'), Timestamp('2013-09-11 00:00:00'), Timestamp('2013-10-21 00:00:00')]
+Duplicate solar dates: 0
+Duplicate cosmic dates: 0
+Interpolating cosmic data...
+Total cosmic days after interpolation: 3085
+宇宙线数据已按日线性插值补全完成。
+Final data summary:
+Solar data: 14604 days (1985-01-01 00:00:00 - 2024-12-25 00:00:00)
+Cosmic data: 3085 days (2011-05-20 00:00:00 - 2019-10-29 00:00:00)
+
+=== 创建 365 天序列（太阳参数+多刚度宇宙线流强） ===
+输入特征: ['HMF', 'wind_speed', 'HCS_tilt', 'polarity', 'SSN', 'daily_OSF', 'helium_flux_1.71GV', 'helium_flux_1.92GV', 'helium_flux_2.15GV', 'helium_flux_2.4GV', 'helium_flux_2.67GV', 'helium_flux_2.97GV', 'helium_flux_3.29GV', 'helium_flux_3.64GV', 'helium_flux_4.02GV', 'helium_flux_4.43GV', 'helium_flux_4.88GV', 'helium_flux_5.37GV', 'helium_flux_5.9GV', 'helium_flux_6.47GV', 'helium_flux_7.09GV', 'helium_flux_7.76GV', 'helium_flux_8.48GV', 'helium_flux_9.26GV']
+
+样例 1: 输入 2011-05-20 00:00:00 到 2012-05-18 00:00:00, 输出 2012-05-19 00:00:00
+  输入形状: (365, 24)
+  输出形状: 18 个刚度
+
+样例 2: 输入 2011-05-21 00:00:00 到 2012-05-19 00:00:00, 输出 2012-05-20 00:00:00
+  输入形状: (365, 24)
+  输出形状: 18 个刚度
+
+样例 3: 输入 2011-05-22 00:00:00 到 2012-05-20 00:00:00, 输出 2012-05-21 00:00:00
+  输入形状: (365, 24)
+  输出形状: 18 个刚度
+
+=== 序列创建结果 ===
+成功对齐: 2720 个样例
+失败对齐: 0 个样例
+最终数据形状:
+  X: (2720, 365, 24) (样例数, 时间步数, 特征数)
+  y: (2720, 18) (样例数, 刚度数)
+  特征顺序: ['HMF', 'wind_speed', 'HCS_tilt', 'polarity', 'SSN', 'daily_OSF', 'helium_flux_1.71GV', 'helium_flux_1.92GV', 'helium_flux_2.15GV', 'helium_flux_2.4GV', 'helium_flux_2.67GV', 'helium_flux_2.97GV', 'helium_flux_3.29GV', 'helium_flux_3.64GV', 'helium_flux_4.02GV', 'helium_flux_4.43GV', 'helium_flux_4.88GV', 'helium_flux_5.37GV', 'helium_flux_5.9GV', 'helium_flux_6.47GV', 'helium_flux_7.09GV', 'helium_flux_7.76GV', 'helium_flux_8.48GV', 'helium_flux_9.26GV']
+  刚度输出顺序: ['helium_flux_1.71GV', 'helium_flux_1.92GV', 'helium_flux_2.15GV', 'helium_flux_2.4GV', 'helium_flux_2.67GV', 'helium_flux_2.97GV', 'helium_flux_3.29GV', 'helium_flux_3.64GV', 'helium_flux_4.02GV', 'helium_flux_4.43GV', 'helium_flux_4.88GV', 'helium_flux_5.37GV', 'helium_flux_5.9GV', 'helium_flux_6.47GV', 'helium_flux_7.09GV', 'helium_flux_7.76GV', 'helium_flux_8.48GV', 'helium_flux_9.26GV']
+
+=== 数据质量检查 ===
+X 中的 NaN 数量: 0
+y 中的 NaN 数量: 0
+
+X 统计 (所有特征):
+  HMF: 均值=5.6035, 标准差=2.3236, 范围=[1.70, 21.80]
+  wind_speed: 均值=420.0917, 标准差=89.3574, 范围=[259.00, 744.00]
+  HCS_tilt: 均值=36.1548, 标准差=22.0072, 范围=[5.33, 73.15]
+  polarity: 均值=0.6489, 标准差=0.7110, 范围=[-1.00, 1.00]
+  SSN: 均值=60.1279, 标准差=48.1064, 范围=[0.00, 220.00]
+  daily_OSF: 均值=7.9256, 标准差=3.2741, 范围=[0.99, 39.68]
+  helium_flux_1.71GV: 均值=79.9008, 标准差=28.7617, 范围=[37.55, 140.40]
+  helium_flux_1.92GV: 均值=74.3365, 标准差=23.4848, 范围=[39.38, 120.90]
+  helium_flux_2.15GV: 均值=67.5865, 标准差=18.7192, 范围=[38.22, 104.10]
+  helium_flux_2.4GV: 均值=60.4685, 标准差=14.7214, 范围=[36.06, 87.54]
+  helium_flux_2.67GV: 均值=53.5303, 标准差=11.5505, 范围=[34.43, 73.99]
+  helium_flux_2.97GV: 均值=46.8256, 标准差=8.9682, 范围=[28.21, 62.88]
+  helium_flux_3.29GV: 均值=40.3465, 标准差=6.8227, 范围=[25.22, 52.47]
+  helium_flux_3.64GV: 均值=34.2788, 标准差=5.0445, 范围=[22.74, 43.42]
+  helium_flux_4.02GV: 均值=28.9275, 标准差=3.7222, 范围=[19.91, 35.85]
+  helium_flux_4.43GV: 均值=24.2107, 标准差=2.7146, 范围=[17.22, 29.24]
+  helium_flux_4.88GV: 均值=20.0747, 标准差=1.9837, 范围=[14.18, 23.68]
+  helium_flux_5.37GV: 均值=16.5694, 标准差=1.4540, 范围=[11.91, 19.26]
+  helium_flux_5.9GV: 均值=13.6141, 标准差=1.0471, 范围=[10.22, 15.65]
+  helium_flux_6.47GV: 均值=11.1428, 标准差=0.7527, 范围=[8.44, 12.65]
+  helium_flux_7.09GV: 均值=9.0869, 标准差=0.5375, 范围=[7.34, 10.20]
+  helium_flux_7.76GV: 均值=7.3979, 标准差=0.3926, 范围=[5.95, 8.27]
+  helium_flux_8.48GV: 均值=6.0122, 标准差=0.2822, 范围=[4.89, 6.72]
+  helium_flux_9.26GV: 均值=4.8823, 标准差=0.2084, 范围=[3.98, 5.35]
+
+y 统计 (所有刚度):
+  helium_flux_1.71GV: 均值=83.4841, 标准差=30.9539, 范围=[37.55, 140.40]
+  helium_flux_1.92GV: 均值=77.1674, 标准差=25.1468, 范围=[39.38, 120.90]
+  helium_flux_2.15GV: 均值=69.7796, 标准差=19.9541, 范围=[38.22, 104.10]
+  helium_flux_2.4GV: 均值=62.1636, 标准差=15.6610, 范围=[36.06, 87.54]
+  helium_flux_2.67GV: 均值=54.8526, 标准差=12.2851, 范围=[34.43, 73.99]
+  helium_flux_2.97GV: 均值=47.8442, 标准差=9.5093, 范围=[30.24, 62.88]
+  helium_flux_3.29GV: 均值=41.1097, 标准差=7.2183, 范围=[27.09, 52.47]
+  helium_flux_3.64GV: 均值=34.8384, 标准差=5.3235, 范围=[24.42, 43.42]
+  helium_flux_4.02GV: 均值=29.3436, 标准差=3.9254, 范围=[21.18, 35.85]
+  helium_flux_4.43GV: 均值=24.5077, 标准差=2.8540, 范围=[18.36, 29.24]
+  helium_flux_4.88GV: 均值=20.2912, 标准差=2.0841, 范围=[15.57, 23.68]
+  helium_flux_5.37GV: 均值=16.7243, 标准差=1.5228, 范围=[13.09, 19.26]
+  helium_flux_5.9GV: 均值=13.7279, 标准差=1.0980, 范围=[11.02, 15.65]
+  helium_flux_6.47GV: 均值=11.2223, 标准差=0.7869, 范围=[9.15, 12.70]
+  helium_flux_7.09GV: 均值=9.1438, 标准差=0.5620, 范围=[7.45, 10.20]
+  helium_flux_7.76GV: 均值=7.4383, 标准差=0.4088, 范围=[6.05, 8.27]
+  helium_flux_8.48GV: 均值=6.0408, 标准差=0.2936, 范围=[5.03, 6.72]
+  helium_flux_9.26GV: 均值=4.9033, 标准差=0.2174, 范围=[4.10, 5.35]
+
+数据划分:
+  训练集: 2312 样例
+  测试集: 408 样例
+  训练时间范围: 2012-05-19 00:00:00 到 2018-09-16 00:00:00
+  测试时间范围: 2018-09-17 00:00:00 到 2019-10-29 00:00:00
+
+=== 数据归一化 ===
+归一化前:
+  X_train 形状: (2312, 365, 24)
+  y_train 形状: (2312, 18)
+AttributeError: 'numpy.float64' object has no attribute 'sqrt'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/phil/Files/lstmPaper/model3_v250818_spectrum/lstm_cosmic_ray.py", line 576, in <module>
+    main()
+  File "/home/phil/Files/lstmPaper/model3_v250818_spectrum/lstm_cosmic_ray.py", line 461, in main
+    X_train_scaled, X_test_scaled, y_train_scaled, y_test_scaled, scaler_X, scaler_y = normalize_data(
+  File "/home/phil/Files/lstmPaper/model3_v250818_spectrum/data_processor.py", line 234, in normalize_data
+    print(f"  y_train 统计: 均值={np.mean(y_train, axis=0)}, 标准差={np.std(y_train, axis=0)}")
+  File "/home/phil/miniconda3/envs/pytorch/lib/python3.9/site-packages/numpy/core/fromnumeric.py", line 3645, in std
+    return _methods._std(a, axis=axis, dtype=dtype, out=out, ddof=ddof,
+  File "/home/phil/miniconda3/envs/pytorch/lib/python3.9/site-packages/numpy/core/_methods.py", line 210, in _std
+    ret = um.sqrt(ret, out=ret)
+TypeError: loop of ufunc does not support argument 0 of type numpy.float64 which has no callable sqrt method
+(pytorch) phil@ss0:~/Files/lstmPaper/model3_v250818_spectrum$ 
+
+
