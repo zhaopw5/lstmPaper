@@ -1,3 +1,4 @@
+from config import SEQUENCE_LENGTH, TRAIN_RATIO, VAL_RATIO, TEST_RATIO, SOLAR_DATA_PATH, COSMIC_DATA_PATH
 import pandas as pd
 import numpy as np
 import torch
@@ -108,6 +109,8 @@ def load_and_check_data():
         if col in cosmic_data.columns:
             cosmic_data[col] = cosmic_data[col].interpolate(method='linear')
     # 把插值后 DataFrame 的索引（即日期）还原成普通列，并把列名改回原来的名字
+    # save the interpolated cosmic data
+    cosmic_data.to_csv("interpolated_cosmic_data.csv", index=False)
     cosmic_data = (cosmic_data
         .reset_index()
         .rename(columns={'index': 'date YYYY-MM-DD'})
@@ -128,10 +131,10 @@ def load_and_check_data():
     return solar_data, cosmic_data
 
 
-def create_sequences(solar_data, cosmic_data, sequence_length=365):
+def create_sequences(solar_data, cosmic_data, sequence_length=SEQUENCE_LENGTH):
     """
-    每个样本输入：过去365天的[太阳参数*len(SOLAR_PARAMETERS) + helium_flux*len(RIGIDITY_VALUES)]，
-    输出：第366天的所有刚度的helium_flux
+    每个样本输入：过去SEQUENCE_LENGTH天的[太阳参数*len(SOLAR_PARAMETERS) + helium_flux*len(RIGIDITY_VALUES)]，
+    输出：第SEQUENCE_LENGTH+1天的所有刚度的helium_flux
     """
 
     print(f"\n=== 创建 {sequence_length} 天序列（太阳参数+多刚度宇宙线流强） ===")
@@ -271,4 +274,102 @@ def normalize_data(X_train, X_test, y_train, y_test):
     print(f"  y_train_scaled 统计: 均值={y_scaled_mean[:3]}..., 标准差={y_scaled_std[:3]}...")  # 只显示前3个
     
     return X_train_scaled, X_test_scaled, y_train_scaled, y_test_scaled, scaler_X, scaler_y
+
+
+def split_data_three_way(X, y, dates, 
+                        train_ratio=TRAIN_RATIO, 
+                        val_ratio=VAL_RATIO, 
+                        test_ratio=TEST_RATIO):
+    """标准三分法数据划分（使用配置中的比例）"""
+    print(f"=== 标准三分法数据划分 ===")
+    
+    n_samples = len(X)
+    n_train = int(n_samples * train_ratio)
+    n_val = int(n_samples * val_ratio)
+    n_test = n_samples - n_train - n_val  # 确保所有样本都被使用
+    
+    print(f"总样本数: {n_samples}")
+    print(f"  训练集: {n_train} 样例 ({train_ratio*100:.1f}%)")
+    print(f"  验证集: {n_val} 样例 ({val_ratio*100:.1f}%)")
+    print(f"  测试集: {n_test} 样例 ({(n_test/n_samples)*100:.1f}%)")
+    
+    # 按时间顺序划分
+    X_train = X[:n_train]
+    X_val = X[n_train:n_train+n_val]
+    X_test = X[n_train+n_val:]
+    
+    y_train = y[:n_train]
+    y_val = y[n_train:n_train+n_val]
+    y_test = y[n_train+n_val:]
+    
+    dates_train = dates[:n_train]
+    dates_val = dates[n_train:n_train+n_val]
+    dates_test = dates[n_train+n_val:]
+    
+    print(f"  训练时间范围: {dates_train[0]} 到 {dates_train[-1]}")
+    print(f"  验证时间范围: {dates_val[0]} 到 {dates_val[-1]}")
+    print(f"  测试时间范围: {dates_test[0]} 到 {dates_test[-1]}")
+    
+    return X_train, X_val, X_test, y_train, y_val, y_test, dates_train, dates_val, dates_test
+
+
+def normalize_data_three_way(X_train, X_val, X_test, y_train, y_val, y_test):
+    """三分法数据归一化 - 只用训练集拟合归一化器"""
+    print(f"\n=== 三分法数据归一化 ===")
+    
+    # 打印归一化前的统计
+    print(f"归一化前:")
+    print(f"  X_train 形状: {X_train.shape}")
+    print(f"  X_val 形状: {X_val.shape}")
+    print(f"  X_test 形状: {X_test.shape}")
+    print(f"  y_train 形状: {y_train.shape}")
+    
+    # 确保数据类型正确并计算统计量
+    y_train_array = np.asarray(y_train, dtype=np.float64)
+    y_mean = np.mean(y_train_array, axis=0)
+    y_std = np.std(y_train_array, axis=0)
+    print(f"  y_train 统计: 均值={y_mean[:3]}..., 标准差={y_std[:3]}...")  # 只显示前3个以节省空间
+    
+    # 对输入数据进行归一化 (重塑为二维进行归一化)
+    n_samples_train, n_timesteps, n_features = X_train.shape
+    n_samples_val = X_val.shape[0]
+    n_samples_test = X_test.shape[0]
+    
+    # 重塑为二维
+    X_train_2d = X_train.reshape(-1, n_features)
+    X_val_2d = X_val.reshape(-1, n_features)
+    X_test_2d = X_test.reshape(-1, n_features)
+    
+    # 使用StandardScaler - 只用训练集拟合
+    scaler_X = StandardScaler()
+    X_train_scaled_2d = scaler_X.fit_transform(X_train_2d)
+    X_val_scaled_2d = scaler_X.transform(X_val_2d)
+    X_test_scaled_2d = scaler_X.transform(X_test_2d)
+    
+    # 重塑回三维
+    X_train_scaled = X_train_scaled_2d.reshape(n_samples_train, n_timesteps, n_features)
+    X_val_scaled = X_val_scaled_2d.reshape(n_samples_val, n_timesteps, n_features)
+    X_test_scaled = X_test_scaled_2d.reshape(n_samples_test, n_timesteps, n_features)
+    
+    # 对输出数据进行归一化 - 处理多维输出，只用训练集拟合
+    scaler_y = StandardScaler()
+    y_train_scaled = scaler_y.fit_transform(y_train)
+    y_val_scaled = scaler_y.transform(y_val)
+    y_test_scaled = scaler_y.transform(y_test)
+    
+    # 打印归一化后的统计
+    print(f"归一化后:")
+    print(f"  X_train_scaled 统计: 均值={np.mean(X_train_scaled):.4f}, 标准差={np.std(X_train_scaled):.4f}")
+    print(f"  X_val_scaled 统计: 均值={np.mean(X_val_scaled):.4f}, 标准差={np.std(X_val_scaled):.4f}")
+    print(f"  X_test_scaled 统计: 均值={np.mean(X_test_scaled):.4f}, 标准差={np.std(X_test_scaled):.4f}")
+    print(f"  y_train_scaled 形状: {y_train_scaled.shape}")
+    
+    # 计算归一化后的统计量
+    y_scaled_mean = np.mean(y_train_scaled, axis=0)
+    y_scaled_std = np.std(y_train_scaled, axis=0)
+    print(f"  y_train_scaled 统计: 均值={y_scaled_mean[:3]}..., 标准差={y_scaled_std[:3]}...")  # 只显示前3个
+    
+    return (X_train_scaled, X_val_scaled, X_test_scaled, 
+            y_train_scaled, y_val_scaled, y_test_scaled, 
+            scaler_X, scaler_y)
 

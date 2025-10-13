@@ -1,0 +1,701 @@
+=== 完整LSTM宇宙线预测模型（包含训练和扩展预测）===
+
+=== 当前配置参数 ===
+序列长度: 180 天
+隐藏层大小: 128
+LSTM层数: 2
+批次大小: 64
+最大训练轮数: 1000
+学习率: 0.0001
+早停耐心值: 30
+=========================
+读取太阳数据: /home/phil/Files/lstmPaper/data/outputs/cycle_analysis/solar_physics_data_1985_2025_v250820.csv
+读取宇宙线数据: /home/phil/Files/lstmPaper/data/raw_data/ams/helium.csv
+成功加载 18 个刚度的数据: ['1.71GV', '1.92GV', '2.15GV', '2.4GV', '2.67GV', '2.97GV', '3.29GV', '3.64GV', '4.02GV', '4.43GV', '4.88GV', '5.37GV', '5.9GV', '6.47GV', '7.09GV', '7.76GV', '8.48GV', '9.26GV']
+=== Data Alignment Debug ===
+Solar data range: 1985-01-01 00:00:00 to 2024-12-25 00:00:00
+Cosmic data range: 2011-05-20 00:00:00 to 2019-10-29 00:00:00
+Total solar days: 14604
+Total cosmic days before interpolation: 2824
+Missing solar days: 0
+Missing cosmic days: 261
+First 5 missing cosmic dates: [Timestamp('2011-06-04 00:00:00'), Timestamp('2012-11-01 00:00:00'), Timestamp('2013-09-10 00:00:00'), Timestamp('2013-09-11 00:00:00'), Timestamp('2013-10-21 00:00:00')]
+Duplicate solar dates: 0
+Duplicate cosmic dates: 0
+Interpolating cosmic data...
+Total cosmic days after interpolation: 3085
+宇宙线数据已按日线性插值补全完成。
+Final data summary:
+Solar data: 14604 days (1985-01-01 00:00:00 - 2024-12-25 00:00:00)
+Cosmic data: 3085 days (2011-05-20 00:00:00 - 2019-10-29 00:00:00)
+
+=== 创建 180 天序列（太阳参数+多刚度宇宙线流强） ===
+输入特征: ['HMF', 'wind_speed', 'HCS_tilt', 'polarity', 'SSN', 'daily_OSF', 'helium_flux_1.71GV', 'helium_flux_1.92GV', 'helium_flux_2.15GV', 'helium_flux_2.4GV', 'helium_flux_2.67GV', 'helium_flux_2.97GV', 'helium_flux_3.29GV', 'helium_flux_3.64GV', 'helium_flux_4.02GV', 'helium_flux_4.43GV', 'helium_flux_4.88GV', 'helium_flux_5.37GV', 'helium_flux_5.9GV', 'helium_flux_6.47GV', 'helium_flux_7.09GV', 'helium_flux_7.76GV', 'helium_flux_8.48GV', 'helium_flux_9.26GV']
+
+样例 1: 输入 2011-05-20 00:00:00 到 2011-11-15 00:00:00, 输出 2011-11-16 00:00:00
+  输入形状: (180, 24)
+  输出形状: 18 个刚度
+
+样例 2: 输入 2011-05-21 00:00:00 到 2011-11-16 00:00:00, 输出 2011-11-17 00:00:00
+  输入形状: (180, 24)
+  输出形状: 18 个刚度
+
+样例 3: 输入 2011-05-22 00:00:00 到 2011-11-17 00:00:00, 输出 2011-11-18 00:00:00
+  输入形状: (180, 24)
+  输出形状: 18 个刚度
+
+=== 序列创建结果 ===
+成功对齐: 2905 个样例
+失败对齐: 0 个样例
+最终数据形状:
+  X: (2905, 180, 24) (样例数, 时间步数, 特征数)
+  y: (2905, 18) (样例数, 刚度数)
+  特征顺序: ['HMF', 'wind_speed', 'HCS_tilt', 'polarity', 'SSN', 'daily_OSF', 'helium_flux_1.71GV', 'helium_flux_1.92GV', 'helium_flux_2.15GV', 'helium_flux_2.4GV', 'helium_flux_2.67GV', 'helium_flux_2.97GV', 'helium_flux_3.29GV', 'helium_flux_3.64GV', 'helium_flux_4.02GV', 'helium_flux_4.43GV', 'helium_flux_4.88GV', 'helium_flux_5.37GV', 'helium_flux_5.9GV', 'helium_flux_6.47GV', 'helium_flux_7.09GV', 'helium_flux_7.76GV', 'helium_flux_8.48GV', 'helium_flux_9.26GV']
+  刚度输出顺序: ['helium_flux_1.71GV', 'helium_flux_1.92GV', 'helium_flux_2.15GV', 'helium_flux_2.4GV', 'helium_flux_2.67GV', 'helium_flux_2.97GV', 'helium_flux_3.29GV', 'helium_flux_3.64GV', 'helium_flux_4.02GV', 'helium_flux_4.43GV', 'helium_flux_4.88GV', 'helium_flux_5.37GV', 'helium_flux_5.9GV', 'helium_flux_6.47GV', 'helium_flux_7.09GV', 'helium_flux_7.76GV', 'helium_flux_8.48GV', 'helium_flux_9.26GV']
+
+=== 数据质量检查 ===
+X 中的 NaN 数量: 0
+y 中的 NaN 数量: 0
+
+X 统计 (所有特征):
+  HMF: 均值=5.5661, 标准差=2.3024, 范围=[1.70, 21.80]
+  wind_speed: 均值=418.8662, 标准差=88.5613, 范围=[259.00, 744.00]
+  HCS_tilt: 均值=35.8254, 标准差=22.1581, 范围=[5.33, 73.15]
+  polarity: 均值=0.6076, 标准差=0.7497, 范围=[-1.00, 1.00]
+  SSN: 均值=59.6924, 标准差=48.6810, 范围=[0.00, 220.00]
+  daily_OSF: 均值=7.8665, 标准差=3.2423, 范围=[0.99, 39.68]
+  helium_flux_1.71GV: 均值=81.2500, 标准差=29.0306, 范围=[37.55, 140.40]
+  helium_flux_1.92GV: 均值=75.4019, 标准差=23.6417, 范围=[39.38, 120.90]
+  helium_flux_2.15GV: 均值=68.4094, 标准差=18.8059, 范围=[38.22, 104.10]
+  helium_flux_2.4GV: 均值=61.1042, 标准差=14.7728, 范围=[36.06, 87.54]
+  helium_flux_2.67GV: 均值=54.0326, 标准差=11.5942, 范围=[34.43, 73.99]
+  helium_flux_2.97GV: 均值=47.2077, 标准差=8.9925, 范围=[28.21, 62.88]
+  helium_flux_3.29GV: 均值=40.6345, 标准差=6.8400, 范围=[25.22, 52.47]
+  helium_flux_3.64GV: 均值=34.4865, 标准差=5.0528, 范围=[22.74, 43.42]
+  helium_flux_4.02GV: 均值=29.0772, 标准差=3.7264, 范围=[19.91, 35.85]
+  helium_flux_4.43GV: 均值=24.3170, 标准差=2.7138, 范围=[17.22, 29.24]
+  helium_flux_4.88GV: 均值=20.1526, 标准差=1.9841, 范围=[14.18, 23.68]
+  helium_flux_5.37GV: 均值=16.6248, 标准差=1.4528, 范围=[11.91, 19.26]
+  helium_flux_5.9GV: 均值=13.6550, 标准差=1.0477, 范围=[10.22, 15.65]
+  helium_flux_6.47GV: 均值=11.1716, 标准差=0.7523, 范围=[8.44, 12.65]
+  helium_flux_7.09GV: 均值=9.1083, 标准差=0.5384, 范围=[7.34, 10.20]
+  helium_flux_7.76GV: 均值=7.4137, 标准差=0.3939, 范围=[5.95, 8.27]
+  helium_flux_8.48GV: 均值=6.0231, 标准差=0.2825, 范围=[4.89, 6.72]
+  helium_flux_9.26GV: 均值=4.8910, 标准差=0.2092, 范围=[3.98, 5.35]
+
+y 统计 (所有刚度):
+  helium_flux_1.71GV: 均值=82.8720, 标准差=30.1072, 范围=[37.55, 140.40]
+  helium_flux_1.92GV: 均值=76.6840, 标准差=24.4659, 范围=[39.38, 120.90]
+  helium_flux_2.15GV: 均值=69.4020, 标准差=19.4219, 范围=[38.22, 104.10]
+  helium_flux_2.4GV: 均值=61.8763, 标准差=15.2416, 范围=[36.06, 87.54]
+  helium_flux_2.67GV: 均值=54.6365, 标准差=11.9587, 范围=[34.43, 73.99]
+  helium_flux_2.97GV: 均值=47.6725, 标准差=9.2709, 范围=[28.21, 62.88]
+  helium_flux_3.29GV: 均值=40.9814, 标准差=7.0415, 范围=[25.22, 52.47]
+  helium_flux_3.64GV: 均值=34.7408, 标准差=5.1969, 范围=[22.74, 43.42]
+  helium_flux_4.02GV: 均值=29.2689, 标准差=3.8357, 范围=[19.91, 35.85]
+  helium_flux_4.43GV: 均值=24.4555, 标准差=2.7918, 范围=[17.22, 29.24]
+  helium_flux_4.88GV: 均值=20.2534, 标准差=2.0400, 范围=[14.18, 23.68]
+  helium_flux_5.37GV: 均值=16.6982, 标准差=1.4921, 范围=[11.91, 19.26]
+  helium_flux_5.9GV: 均值=13.7092, 标准差=1.0777, 范围=[10.22, 15.65]
+  helium_flux_6.47GV: 均值=11.2095, 标准差=0.7734, 范围=[8.44, 12.70]
+  helium_flux_7.09GV: 均值=9.1352, 标准差=0.5530, 范围=[7.34, 10.20]
+  helium_flux_7.76GV: 均值=7.4322, 标准差=0.4032, 范围=[5.95, 8.27]
+  helium_flux_8.48GV: 均值=6.0369, 标准差=0.2899, 范围=[4.89, 6.72]
+  helium_flux_9.26GV: 均值=4.9009, 标准差=0.2144, 范围=[3.98, 5.35]
+=== 标准三分法数据划分 ===
+总样本数: 2905
+  训练集: 2178 样例 (75.0%)
+  验证集: 290 样例 (10.0%)
+  测试集: 437 样例 (15.0%)
+  训练时间范围: 2011-11-16 00:00:00 到 2017-11-01 00:00:00
+  验证时间范围: 2017-11-02 00:00:00 到 2018-08-18 00:00:00
+  测试时间范围: 2018-08-19 00:00:00 到 2019-10-29 00:00:00
+
+=== 三分法数据归一化 ===
+归一化前:
+  X_train 形状: (2178, 180, 24)
+  X_val 形状: (290, 180, 24)
+  X_test 形状: (437, 180, 24)
+  y_train 形状: (2178, 18)
+  y_train 统计: 均值=[69.5130831  66.04953168 61.07715794]..., 标准差=[22.02377369 18.45643979 14.91963908]...
+归一化后:
+  X_train_scaled 统计: 均值=0.0000, 标准差=1.0000
+  X_val_scaled 统计: 均值=1.1999, 标准差=1.1870
+  X_test_scaled 统计: 均值=1.4814, 标准差=1.3615
+  y_train_scaled 形状: (2178, 18)
+  y_train_scaled 统计: 均值=[ 3.71797277e-15 -1.46714596e-15  1.20228284e-15]..., 标准差=[1. 1. 1.]...
+
+模型配置:
+  输入特征数: 24
+  隐藏层大小: 128
+  LSTM层数: 2
+  序列长度: 180
+  批次大小: 64
+模型结构已保存到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/model_summary.txt
+开始训练模型，使用设备: cuda
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+Epoch [10/1000], Train Loss: 0.750724, Val Loss: 2.735098
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+Epoch [20/1000], Train Loss: 0.501410, Val Loss: 1.869732
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+Epoch [30/1000], Train Loss: 0.323839, Val Loss: 1.277712
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+Epoch [40/1000], Train Loss: 0.226337, Val Loss: 0.874221
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+Epoch [50/1000], Train Loss: 0.165111, Val Loss: 0.553366
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+Epoch [60/1000], Train Loss: 0.126039, Val Loss: 0.314836
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+Epoch [70/1000], Train Loss: 0.104460, Val Loss: 0.179417
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+Epoch [80/1000], Train Loss: 0.088820, Val Loss: 0.115967
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+Epoch [90/1000], Train Loss: 0.083405, Val Loss: 0.085347
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+Epoch [100/1000], Train Loss: 0.077888, Val Loss: 0.067310
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+Epoch [110/1000], Train Loss: 0.068027, Val Loss: 0.063541
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+Epoch [120/1000], Train Loss: 0.065169, Val Loss: 0.056298
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+Epoch [130/1000], Train Loss: 0.061611, Val Loss: 0.052568
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+Epoch [140/1000], Train Loss: 0.060246, Val Loss: 0.049899
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+Epoch [150/1000], Train Loss: 0.056676, Val Loss: 0.047478
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+Epoch [160/1000], Train Loss: 0.054558, Val Loss: 0.045628
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+Epoch [170/1000], Train Loss: 0.053552, Val Loss: 0.042462
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+Epoch [180/1000], Train Loss: 0.052325, Val Loss: 0.043644
+Epoch [190/1000], Train Loss: 0.050526, Val Loss: 0.045625
+Epoch [200/1000], Train Loss: 0.050042, Val Loss: 0.057704
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+Epoch [210/1000], Train Loss: 0.049920, Val Loss: 0.043547
+Epoch [220/1000], Train Loss: 0.049850, Val Loss: 0.048736
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+Epoch [230/1000], Train Loss: 0.046869, Val Loss: 0.051463
+Epoch [240/1000], Train Loss: 0.048653, Val Loss: 0.055001
+Epoch [250/1000], Train Loss: 0.045919, Val Loss: 0.044888
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+Epoch [260/1000], Train Loss: 0.046726, Val Loss: 0.050784
+保存当前最佳模型到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/best_corrected_model.pth
+Epoch [270/1000], Train Loss: 0.044167, Val Loss: 0.056686
+Epoch [280/1000], Train Loss: 0.044023, Val Loss: 0.040319
+Epoch [290/1000], Train Loss: 0.043234, Val Loss: 0.046967
+早停在第 291 轮
+训练历史已保存到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/training_history.csv
+
+=== 在独立测试集上评估模型 ===
+模型性能指标已保存到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/model_metrics.txt
+模型主要性能指标已自动保存到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/model_metrics.txt
+
+=== 开始扩展预测 ===
+将预测从 2011-05-20 到 2024-12-25, 总共 4969 个日期
+
+=== 扩展预测（递归式，序列长度=180天）：4969 个日期 ===
+已处理 1000/4969 个日期
+已处理 2000/4969 个日期
+已处理 3000/4969 个日期
+已处理 4000/4969 个日期
+成功预测了 4789 个数据点（递归式扩展）
+
+=== 详细评估结果 ===
+测试集性能（按刚度）：
+注意：测试期为低波动窗口，R²可能失效，请重点关注 MAPE、Pearson r 和 NRMSE
+
+=== 测试集性能摘要（更适用于低方差期间）===
+刚度       MAPE     Pearson_r  NRMSE/rng  R²       备注
+------------------------------------------------------------
+1.71GV   9.8      0.667      0.011      -2.054   良好
+1.92GV   7.3      0.633      0.011      -1.101   良好
+2.15GV   6.4      0.618      0.012      -0.484   良好
+2.4GV    6.3      0.605      0.015      -0.557   良好
+2.67GV   5.4      0.654      0.017      -0.099   良好
+2.97GV   6.6      0.634      0.024      -0.281   良好
+3.29GV   7.2      0.570      0.035      -0.516   良好
+3.64GV   6.0      0.569      0.039      -0.050   良好
+4.02GV   7.1      0.560      0.051      -0.141   良好
+4.43GV   6.5      0.618      0.066      0.209    良好
+4.88GV   7.0      0.621      0.093      -0.008   良好
+5.37GV   7.7      0.541      0.130      0.040    良好
+5.9GV    8.4      0.532      0.164      0.138    良好
+6.47GV   8.0      0.617      0.216      0.229    良好
+7.09GV   10.2     0.550      0.286      0.131    一般
+7.76GV   12.5     0.395      0.463      0.098    一般
+8.48GV   13.0     0.504      0.454      0.249    一般
+9.26GV   13.2     0.383      0.836      0.040    一般
+  1.71GV:
+    MSE: 0.081618, MAE: 0.257420, R²: -2.053528
+    MAPE: 9.84%, MRE: 4.42%
+  1.92GV:
+    MSE: 0.044167, MAE: 0.180400, R²: -1.101397
+    MAPE: 7.28%, MRE: 2.91%
+  2.15GV:
+    MSE: 0.034737, MAE: 0.153189, R²: -0.483898
+    MAPE: 6.38%, MRE: 2.18%
+  2.4GV:
+    MSE: 0.031318, MAE: 0.146658, R²: -0.557332
+    MAPE: 6.27%, MRE: 1.93%
+  2.67GV:
+    MSE: 0.022759, MAE: 0.123647, R²: -0.098813
+    MAPE: 5.42%, MRE: 1.35%
+  2.97GV:
+    MSE: 0.029091, MAE: 0.146414, R²: -0.281399
+    MAPE: 6.61%, MRE: 1.50%
+  3.29GV:
+    MSE: 0.036276, MAE: 0.159011, R²: -0.515625
+    MAPE: 7.21%, MRE: 1.57%
+  3.64GV:
+    MSE: 0.025934, MAE: 0.128832, R²: -0.049877
+    MAPE: 6.01%, MRE: 0.96%
+  4.02GV:
+    MSE: 0.035612, MAE: 0.151621, R²: -0.140828
+    MAPE: 7.06%, MRE: 1.07%
+  4.43GV:
+    MSE: 0.027535, MAE: 0.133872, R²: 0.208682
+    MAPE: 6.47%, MRE: 0.62%
+  4.88GV:
+    MSE: 0.032591, MAE: 0.145055, R²: -0.007776
+    MAPE: 6.95%, MRE: 0.82%
+  5.37GV:
+    MSE: 0.040282, MAE: 0.159021, R²: 0.039945
+    MAPE: 7.70%, MRE: 0.66%
+  5.9GV:
+    MSE: 0.047815, MAE: 0.172079, R²: 0.138064
+    MAPE: 8.44%, MRE: 0.51%
+  6.47GV:
+    MSE: 0.046838, MAE: 0.165430, R²: 0.228544
+    MAPE: 8.04%, MRE: 0.49%
+  7.09GV:
+    MSE: 0.068691, MAE: 0.201550, R²: 0.130626
+    MAPE: 10.23%, MRE: 0.53%
+  7.76GV:
+    MSE: 0.088769, MAE: 0.241332, R²: 0.097813
+    MAPE: 12.51%, MRE: 0.30%
+  8.48GV:
+    MSE: 0.084772, MAE: 0.226630, R²: 0.248727
+    MAPE: 12.95%, MRE: 0.05%
+  9.26GV:
+    MSE: 0.103060, MAE: 0.253678, R²: 0.040314
+    MAPE: 13.20%, MRE: 0.35%
+
+=== R² 诊断（测试期） ===
+  1.71GV: Var(y)=12.964835, MSE(model)=39.588491, R²=-2.054
+    MSE(const-mean)=12.964835, MSE(persist)=4.533484, Skill_vs_persist=-7.732
+    NRMSE/std=1.75, NRMSE/range=0.234, Pearson r=0.667
+  1.92GV: Var(y)=7.159517, MSE(model)=15.044986, R²=-1.101
+    MSE(const-mean)=7.159517, MSE(persist)=3.446935, Skill_vs_persist=-3.365
+    NRMSE/std=1.45, NRMSE/range=0.199, Pearson r=0.633
+  2.15GV: Var(y)=5.210771, MSE(model)=7.732252, R²=-0.484
+    MSE(const-mean)=5.210771, MSE(persist)=2.325905, Skill_vs_persist=-2.324
+    NRMSE/std=1.22, NRMSE/range=0.179, Pearson r=0.618
+  2.4GV: Var(y)=2.820389, MSE(model)=4.392282, R²=-0.557
+    MSE(const-mean)=2.820389, MSE(persist)=1.515029, Skill_vs_persist=-1.899
+    NRMSE/std=1.25, NRMSE/range=0.181, Pearson r=0.605
+  2.67GV: Var(y)=1.823483, MSE(model)=2.003667, R²=-0.099
+    MSE(const-mean)=1.823483, MSE(persist)=0.851741, Skill_vs_persist=-1.352
+    NRMSE/std=1.05, NRMSE/range=0.157, Pearson r=0.654
+  2.97GV: Var(y)=1.237645, MSE(model)=1.585917, R²=-0.281
+    MSE(const-mean)=1.237645, MSE(persist)=0.695624, Skill_vs_persist=-1.280
+    NRMSE/std=1.13, NRMSE/range=0.178, Pearson r=0.634
+  3.29GV: Var(y)=0.761184, MSE(model)=1.153669, R²=-0.516
+    MSE(const-mean)=0.761184, MSE(persist)=0.375681, Skill_vs_persist=-2.071
+    NRMSE/std=1.23, NRMSE/range=0.197, Pearson r=0.570
+  3.64GV: Var(y)=0.437905, MSE(model)=0.459746, R²=-0.050
+    MSE(const-mean)=0.437905, MSE(persist)=0.255711, Skill_vs_persist=-0.798
+    NRMSE/std=1.02, NRMSE/range=0.166, Pearson r=0.569
+  4.02GV: Var(y)=0.302062, MSE(model)=0.344601, R²=-0.141
+    MSE(const-mean)=0.302062, MSE(persist)=0.213021, Skill_vs_persist=-0.618
+    NRMSE/std=1.07, NRMSE/range=0.159, Pearson r=0.560
+  4.43GV: Var(y)=0.183065, MSE(model)=0.144863, R²=0.209
+    MSE(const-mean)=0.183065, MSE(persist)=0.102219, Skill_vs_persist=-0.417
+    NRMSE/std=0.89, NRMSE/range=0.152, Pearson r=0.618
+  4.88GV: Var(y)=0.090741, MSE(model)=0.091447, R²=-0.008
+    MSE(const-mean)=0.090741, MSE(persist)=0.057757, Skill_vs_persist=-0.583
+    NRMSE/std=1.00, NRMSE/range=0.156, Pearson r=0.621
+  5.37GV: Var(y)=0.063477, MSE(model)=0.060941, R²=0.040
+    MSE(const-mean)=0.063477, MSE(persist)=0.040679, Skill_vs_persist=-0.498
+    NRMSE/std=0.98, NRMSE/range=0.160, Pearson r=0.541
+  5.9GV: Var(y)=0.043908, MSE(model)=0.037845, R²=0.138
+    MSE(const-mean)=0.043908, MSE(persist)=0.030114, Skill_vs_persist=-0.257
+    NRMSE/std=0.93, NRMSE/range=0.146, Pearson r=0.532
+  6.47GV: Var(y)=0.025060, MSE(model)=0.019333, R²=0.229
+    MSE(const-mean)=0.025060, MSE(persist)=0.015382, Skill_vs_persist=-0.257
+    NRMSE/std=0.88, NRMSE/range=0.139, Pearson r=0.617
+  7.09GV: Var(y)=0.016818, MSE(model)=0.014621, R²=0.131
+    MSE(const-mean)=0.016818, MSE(persist)=0.015278, Skill_vs_persist=0.043
+    NRMSE/std=0.93, NRMSE/range=0.132, Pearson r=0.550
+  7.76GV: Var(y)=0.011157, MSE(model)=0.010066, R²=0.098
+    MSE(const-mean)=0.011157, MSE(persist)=0.011879, Skill_vs_persist=0.153
+    NRMSE/std=0.95, NRMSE/range=0.156, Pearson r=0.395
+  8.48GV: Var(y)=0.006843, MSE(model)=0.005141, R²=0.249
+    MSE(const-mean)=0.006843, MSE(persist)=0.007573, Skill_vs_persist=0.321
+    NRMSE/std=0.87, NRMSE/range=0.112, Pearson r=0.504
+  9.26GV: Var(y)=0.003486, MSE(model)=0.003345, R²=0.040
+    MSE(const-mean)=0.003486, MSE(persist)=0.004155, Skill_vs_persist=0.195
+    NRMSE/std=0.98, NRMSE/range=0.151, Pearson r=0.383
+
+完整预测重叠期间性能（按刚度）：
+  1.71GV (对比数据点数: 2905):
+    MSE: 10.036165, MAE: 2.237235, R²: 0.988928
+    MAPE: 2.57%, MRE: 0.36%
+  1.92GV (对比数据点数: 2905):
+    MSE: 4.937599, MAE: 1.628973, R²: 0.991751
+    MAPE: 2.10%, MRE: 0.24%
+  2.15GV (对比数据点数: 2905):
+    MSE: 3.161015, MAE: 1.325454, R²: 0.991620
+    MAPE: 1.92%, MRE: 0.13%
+  2.4GV (对比数据点数: 2905):
+    MSE: 1.935266, MAE: 1.045572, R²: 0.991669
+    MAPE: 1.71%, MRE: 0.10%
+  2.67GV (对比数据点数: 2905):
+    MSE: 1.218177, MAE: 0.835831, R²: 0.991482
+    MAPE: 1.56%, MRE: -0.04%
+  2.97GV (对比数据点数: 2905):
+    MSE: 0.913899, MAE: 0.732147, R²: 0.989367
+    MAPE: 1.56%, MRE: 0.11%
+  3.29GV (对比数据点数: 2905):
+    MSE: 0.633265, MAE: 0.602516, R²: 0.987228
+    MAPE: 1.49%, MRE: 0.11%
+  3.64GV (对比数据点数: 2905):
+    MSE: 0.328567, MAE: 0.438645, R²: 0.987834
+    MAPE: 1.28%, MRE: 0.06%
+  4.02GV (对比数据点数: 2905):
+    MSE: 0.225253, MAE: 0.365195, R²: 0.984690
+    MAPE: 1.27%, MRE: 0.04%
+  4.43GV (对比数据点数: 2905):
+    MSE: 0.132321, MAE: 0.280537, R²: 0.983023
+    MAPE: 1.16%, MRE: -0.00%
+  4.88GV (对比数据点数: 2905):
+    MSE: 0.081111, MAE: 0.219595, R²: 0.980510
+    MAPE: 1.10%, MRE: 0.11%
+  5.37GV (对比数据点数: 2905):
+    MSE: 0.056186, MAE: 0.183839, R²: 0.974765
+    MAPE: 1.11%, MRE: 0.08%
+  5.9GV (对比数据点数: 2905):
+    MSE: 0.035698, MAE: 0.145511, R²: 0.969261
+    MAPE: 1.07%, MRE: 0.05%
+  6.47GV (对比数据点数: 2905):
+    MSE: 0.021715, MAE: 0.113086, R²: 0.963698
+    MAPE: 1.02%, MRE: 0.03%
+  7.09GV (对比数据点数: 2905):
+    MSE: 0.013982, MAE: 0.091334, R²: 0.954275
+    MAPE: 1.01%, MRE: 0.06%
+  7.76GV (对比数据点数: 2905):
+    MSE: 0.009900, MAE: 0.078060, R²: 0.939101
+    MAPE: 1.06%, MRE: -0.01%
+  8.48GV (对比数据点数: 2905):
+    MSE: 0.006309, MAE: 0.062218, R²: 0.924950
+    MAPE: 1.04%, MRE: -0.02%
+  9.26GV (对比数据点数: 2905):
+    MSE: 0.003997, MAE: 0.049553, R²: 0.913055
+    MAPE: 1.01%, MRE: 0.05%
+
+=== 预测统计信息 ===
+1.71GV 观测数据统计:
+  平均值: 82.50, 标准差: 29.28
+  最小值: 37.55, 最大值: 140.40
+1.71GV 扩展预测统计:
+  预测数据点数: 4789
+  平均值: 83.33, 标准差: 28.38
+  最小值: 39.65, 最大值: 123.40
+1.71GV 未来预测统计:
+  未来预测点数: 1884
+  平均值: 85.25, 标准差: 28.06
+  最小值: 45.60, 最大值: 121.08
+1.92GV 观测数据统计:
+  平均值: 76.39, 标准差: 23.80
+  最小值: 39.38, 最大值: 120.90
+1.92GV 扩展预测统计:
+  预测数据点数: 4789
+  平均值: 77.24, 标准差: 23.53
+  最小值: 38.35, 最大值: 110.13
+1.92GV 未来预测统计:
+  未来预测点数: 1884
+  平均值: 78.75, 标准差: 23.32
+  最小值: 44.17, 最大值: 107.78
+2.15GV 观测数据统计:
+  平均值: 69.17, 标准差: 18.89
+  最小值: 38.22, 最大值: 104.10
+2.15GV 扩展预测统计:
+  预测数据点数: 4789
+  平均值: 69.89, 标准差: 18.81
+  最小值: 38.35, 最大值: 96.41
+2.15GV 未来预测统计:
+  未来预测点数: 1884
+  平均值: 71.03, 标准差: 18.72
+  最小值: 42.26, 最大值: 95.16
+2.4GV 观测数据统计:
+  平均值: 61.69, 标准差: 14.83
+  最小值: 36.06, 最大值: 87.54
+2.4GV 扩展预测统计:
+  预测数据点数: 4789
+  平均值: 62.29, 标准差: 14.73
+  最小值: 36.69, 最大值: 82.74
+2.4GV 未来预测统计:
+  未来预测点数: 1884
+  平均值: 63.20, 标准差: 14.57
+  最小值: 40.51, 最大值: 81.81
+2.67GV 观测数据统计:
+  平均值: 54.49, 标准差: 11.64
+  最小值: 34.43, 最大值: 73.99
+2.67GV 扩展预测统计:
+  预测数据点数: 4789
+  平均值: 55.05, 标准差: 11.72
+  最小值: 34.48, 最大值: 71.09
+2.67GV 未来预测统计:
+  未来预测点数: 1884
+  平均值: 55.74, 标准差: 11.70
+  最小值: 37.31, 最大值: 70.14
+2.97GV 观测数据统计:
+  平均值: 47.56, 标准差: 9.02
+  最小值: 28.21, 最大值: 62.88
+2.97GV 扩展预测统计:
+  预测数据点数: 4789
+  平均值: 47.81, 标准差: 9.11
+  最小值: 31.06, 最大值: 60.16
+2.97GV 未来预测统计:
+  未来预测点数: 1884
+  平均值: 48.19, 标准差: 9.21
+  最小值: 33.21, 最大值: 59.59
+3.29GV 观测数据统计:
+  平均值: 40.89, 标准差: 6.85
+  最小值: 25.22, 最大值: 52.47
+3.29GV 扩展预测统计:
+  预测数据点数: 4789
+  平均值: 41.07, 标准差: 6.89
+  最小值: 27.65, 最大值: 50.49
+3.29GV 未来预测统计:
+  未来预测点数: 1884
+  平均值: 41.34, 标准差: 6.99
+  最小值: 29.52, 最大值: 49.97
+3.64GV 观测数据统计:
+  平均值: 34.67, 标准差: 5.06
+  最小值: 22.74, 最大值: 43.42
+3.64GV 扩展预测统计:
+  预测数据点数: 4789
+  平均值: 34.81, 标准差: 5.17
+  最小值: 23.95, 最大值: 41.96
+3.64GV 未来预测统计:
+  未来预测点数: 1884
+  平均值: 34.99, 标准差: 5.28
+  最小值: 26.00, 最大值: 41.61
+4.02GV 观测数据统计:
+  平均值: 29.22, 标准差: 3.74
+  最小值: 19.91, 最大值: 35.85
+4.02GV 扩展预测统计:
+  预测数据点数: 4789
+  平均值: 29.29, 标准差: 3.84
+  最小值: 21.23, 最大值: 34.55
+4.02GV 未来预测统计:
+  未来预测点数: 1884
+  平均值: 29.36, 标准差: 3.99
+  最小值: 22.59, 最大值: 34.35
+4.43GV 观测数据统计:
+  平均值: 24.42, 标准差: 2.72
+  最小值: 17.22, 最大值: 29.24
+4.43GV 扩展预测统计:
+  预测数据点数: 4789
+  平均值: 24.47, 标准差: 2.82
+  最小值: 18.12, 最大值: 28.36
+4.43GV 未来预测统计:
+  未来预测点数: 1884
+  平均值: 24.51, 标准差: 2.94
+  最小值: 19.31, 最大值: 28.17
+4.88GV 观测数据统计:
+  平均值: 20.22, 标准差: 1.99
+  最小值: 14.18, 最大值: 23.68
+4.88GV 扩展预测统计:
+  预测数据点数: 4789
+  平均值: 20.22, 标准差: 2.06
+  最小值: 15.28, 最大值: 23.04
+4.88GV 未来预测统计:
+  未来预测点数: 1884
+  平均值: 20.21, 标准差: 2.19
+  最小值: 16.28, 最大值: 22.96
+5.37GV 观测数据统计:
+  平均值: 16.68, 标准差: 1.46
+  最小值: 11.91, 最大值: 19.26
+5.37GV 扩展预测统计:
+  预测数据点数: 4789
+  平均值: 16.66, 标准差: 1.52
+  最小值: 12.86, 最大值: 18.72
+5.37GV 未来预测统计:
+  未来预测点数: 1884
+  平均值: 16.63, 标准差: 1.61
+  最小值: 13.69, 最大值: 18.65
+5.9GV 观测数据统计:
+  平均值: 13.69, 标准差: 1.05
+  最小值: 10.22, 最大值: 15.65
+5.9GV 扩展预测统计:
+  预测数据点数: 4789
+  平均值: 13.69, 标准差: 1.10
+  最小值: 10.59, 最大值: 15.26
+5.9GV 未来预测统计:
+  未来预测点数: 1884
+  平均值: 13.67, 标准差: 1.19
+  最小值: 11.52, 最大值: 15.19
+6.47GV 观测数据统计:
+  平均值: 11.20, 标准差: 0.76
+  最小值: 8.44, 最大值: 12.70
+6.47GV 扩展预测统计:
+  预测数据点数: 4789
+  平均值: 11.19, 标准差: 0.79
+  最小值: 8.99, 最大值: 12.32
+6.47GV 未来预测统计:
+  未来预测点数: 1884
+  平均值: 11.18, 标准差: 0.84
+  最小值: 9.58, 最大值: 12.27
+7.09GV 观测数据统计:
+  平均值: 9.13, 标准差: 0.54
+  最小值: 7.34, 最大值: 10.20
+7.09GV 扩展预测统计:
+  预测数据点数: 4789
+  平均值: 9.12, 标准差: 0.56
+  最小值: 7.42, 最大值: 9.91
+7.09GV 未来预测统计:
+  未来预测点数: 1884
+  平均值: 9.10, 标准差: 0.61
+  最小值: 7.90, 最大值: 9.88
+7.76GV 观测数据统计:
+  平均值: 7.43, 标准差: 0.39
+  最小值: 5.95, 最大值: 8.27
+7.76GV 扩展预测统计:
+  预测数据点数: 4789
+  平均值: 7.42, 标准差: 0.41
+  最小值: 6.18, 最大值: 8.03
+7.76GV 未来预测统计:
+  未来预测点数: 1884
+  平均值: 7.40, 标准差: 0.45
+  最小值: 6.45, 最大值: 7.99
+8.48GV 观测数据统计:
+  平均值: 6.03, 标准差: 0.28
+  最小值: 4.89, 最大值: 6.72
+8.48GV 扩展预测统计:
+  预测数据点数: 4789
+  平均值: 6.03, 标准差: 0.30
+  最小值: 5.09, 最大值: 6.47
+8.48GV 未来预测统计:
+  未来预测点数: 1884
+  平均值: 6.02, 标准差: 0.32
+  最小值: 5.37, 最大值: 6.45
+9.26GV 观测数据统计:
+  平均值: 4.90, 标准差: 0.21
+  最小值: 3.98, 最大值: 5.35
+9.26GV 扩展预测统计:
+  预测数据点数: 4789
+  平均值: 4.89, 标准差: 0.21
+  最小值: 4.19, 最大值: 5.21
+9.26GV 未来预测统计:
+  未来预测点数: 1884
+  平均值: 4.88, 标准差: 0.23
+  最小值: 4.40, 最大值: 5.19
+
+测试集结果已保存到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/test_set_predictions.csv
+扩展预测结果已保存到: /home/phil/Files/lstmPaper/model3_v250818_spectrum/cosmic_ray_predictions_extended.csv
+模型已保存为: /home/phil/Files/lstmPaper/model3_v250818_spectrum/complete_lstm_model.pth
+
+=== 完整LSTM模型训练和预测完成！===
